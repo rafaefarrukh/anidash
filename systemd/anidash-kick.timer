@@ -1,0 +1,10 @@
+[Unit]
+Description=anidash catch-up every 20 min (Persistent: fires after resume)
+
+[Timer]
+OnCalendar=*:0/20
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

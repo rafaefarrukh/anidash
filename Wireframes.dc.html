@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/modernist-181d6dc2-bfb7-4768-9c6a-e728d29d6559/styles.css">
+<script src="_ds/modernist-181d6dc2-bfb7-4768-9c6a-e728d29d6559/_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--color-neutral-100);font-family:var(--font-body)}a{color:var(--color-accent-700)}a:hover{color:var(--color-accent-600)}.dv-turn{padding:40px 44px 32px;border-bottom:2px solid var(--color-divider)}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 11px var(--font-body);padding:3px 7px;background:var(--color-text);color:var(--color-bg);text-decoration:none}.dv-tname{font:600 14px var(--font-heading);color:var(--color-text)}.dv-opts{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px}.dv-oid{font:600 11px var(--font-body);padding:3px 7px;background:var(--color-neutral-200);color:var(--color-text);text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.3 var(--font-body);color:var(--color-neutral-700)}.dv-card{max-width:100%;background:var(--color-bg);border:2px solid var(--color-divider);overflow:hidden}.dv-opt:target .dv-oid{background:var(--color-accent);color:#fff}.dv-next{margin:24px 0 0;font:13px/1.5 var(--font-body);color:var(--color-neutral-700)}</style>
+</helmet>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Wireframes — all pages from the outline. Two takes on Season and Library; one each for Activity, Settings, Remove.</span></div>
+<div class="dv-opts">
+
+<!-- 1a Season — rows -->
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Season · one card per row (as specced)</div>
+<div class="dv-card" style="width:820px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading);letter-spacing:-0.01em">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Season</span><span>Library</span><span>Activity</span><span>Settings</span><span>AniList ↗</span></div>
+<div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-neutral-700)"><span style="width:8px;height:8px;background:var(--color-text)"></span>Service running · next check 14:20</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:2px solid var(--color-divider)">
+<div style="display:flex;border:2px solid var(--color-divider)"><span style="padding:6px 10px;font-size:13px">◂</span><span style="padding:6px 14px;font-size:13px;font-weight:600;border-left:2px solid var(--color-divider);border-right:2px solid var(--color-divider)">FALL 2026</span><span style="padding:6px 10px;font-size:13px">▸</span></div>
+<button class="btn btn-secondary" style="white-space:nowrap;flex:none">Sync AniList</button>
+<button class="btn btn-secondary" style="white-space:nowrap;flex:none">Probe all</button>
+<button class="btn btn-ghost" style="margin-left:auto;white-space:nowrap;flex:none">Remove mode</button>
+</div>
+<sc-for list="{{ shows }}" as="s" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(0,1.1fr) 1px minmax(0,1fr);height:188px;margin:16px 20px 0;border:2px solid var(--color-divider);border-radius:4px;overflow:hidden;background:var(--color-bg)">
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:6px;min-width:0">
+<div style="font:700 17px/1.2 var(--font-heading)">{{ s.en }}</div>
+<div style="font-size:13px;color:var(--color-neutral-700)">{{ s.jp }}</div>
+<div style="display:flex;flex-direction:column;gap:5px;margin-top:6px"><div style="height:8px;background:var(--color-neutral-200)"></div><div style="height:8px;background:var(--color-neutral-200)"></div><div style="height:8px;background:var(--color-neutral-200);width:80%"></div><div style="height:8px;background:var(--color-neutral-200);width:55%"></div></div>
+<div style="margin-top:auto;display:flex;gap:14px;font-size:12px;color:var(--color-neutral-700)"><span>Airs {{ s.day }}</span><a href="#1a">Open on AniList ↗</a></div>
+</div>
+<div style="width:1px;background:var(--color-neutral-300);margin:18px 0"></div>
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;min-width:0">
+<div style="display:grid;grid-template-columns:22px minmax(0,1fr) 90px;gap:8px;align-items:center;font-size:13px"><span style="font-weight:700">1</span><div style="border:2px solid var(--color-divider);padding:6px 8px;display:flex;white-space:nowrap;overflow:hidden;min-width:0">{{ s.g1 }}<span style="margin-left:auto">▾</span></div><div style="border:2px solid var(--color-divider);padding:6px 8px;display:flex;white-space:nowrap;overflow:hidden;min-width:0">{{ s.r1 }}<span style="margin-left:auto">▾</span></div></div>
+<div style="display:grid;grid-template-columns:22px minmax(0,1fr) 90px;gap:8px;align-items:center;font-size:13px"><span style="font-weight:700">2</span><div style="border:2px solid var(--color-divider);padding:6px 8px;display:flex;white-space:nowrap;overflow:hidden;min-width:0">{{ s.g2 }}<span style="margin-left:auto">▾</span></div><div style="border:2px solid var(--color-divider);padding:6px 8px;display:flex;white-space:nowrap;overflow:hidden;min-width:0">{{ s.r2 }}<span style="margin-left:auto">▾</span></div></div>
+<div style="display:flex;align-items:center;gap:16px;font-size:12px;color:var(--color-neutral-700);margin-top:auto"><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:var(--color-text)"></span>Trusted only</span><span>Advanced ▸</span><span style="margin-left:auto">{{ s.probe }}</span></div>
+</div>
+</div>
+</sc-for>
+<div style="padding:14px 20px 6px;font:600 12px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Not tracked this season</div>
+<sc-for list="{{ untracked }}" as="u" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:2px solid var(--color-neutral-200);font-size:14px"><span>{{ u }}</span><button class="btn btn-ghost" style="margin-left:auto;white-space:nowrap;flex:none">+ Track</button></div>
+</sc-for>
+</div>
+</div>
+
+<!-- 1b Season — table + side panel -->
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Season · compact table + settings side panel</div>
+<div class="dv-card" style="width:900px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Season</span><span>Library</span><span>Activity</span><span>Settings</span><span>AniList ↗</span></div>
+<div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary" style="white-space:nowrap;flex:none">Sync AniList</button><button class="btn btn-secondary" style="white-space:nowrap;flex:none">Probe all</button></div>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
+<div style="border-right:2px solid var(--color-divider)">
+<div style="display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1.3fr) 70px;gap:10px;padding:10px 16px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)"><span>Title</span><span>Airs</span><span>Release</span><span>Probe</span></div>
+<sc-for list="{{ shows }}" as="s" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:minmax(0,2fr) 80px minmax(0,1.3fr) 70px;gap:10px;padding:12px 16px;border-bottom:2px solid var(--color-neutral-200);font-size:13px;align-items:center"><div style="min-width:0"><div style="font-weight:700">{{ s.en }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.jp }}</div></div><span>{{ s.day }}</span><span>{{ s.g1 }} {{ s.r1 }} → {{ s.g2 }}</span><span>{{ s.probe }}</span></div>
+</sc-for>
+<div style="padding:12px 16px;font-size:13px;color:var(--color-neutral-700)">+ Browse Fall 2026 to track more</div>
+</div>
+<div style="padding:18px 20px;display:flex;flex-direction:column;gap:12px;background:var(--color-neutral-100)">
+<div style="font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Selected</div>
+<div style="font:700 18px/1.2 var(--font-heading)">Title Alpha</div>
+<div style="display:flex;flex-direction:column;gap:5px"><div style="height:8px;background:var(--color-neutral-200)"></div><div style="height:8px;background:var(--color-neutral-200);width:70%"></div></div>
+<div class="hr"></div>
+<div style="font:600 12px var(--font-body)">Release preference</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 80px;gap:8px;font-size:13px"><div style="border:2px solid var(--color-divider);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">1 · SubsPlease ▾</div><div style="border:2px solid var(--color-divider);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">480p ▾</div><div style="border:2px solid var(--color-divider);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">2 · Erai-raws ▾</div><div style="border:2px solid var(--color-divider);padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">480p ▾</div></div>
+<div style="font-size:12px;color:var(--color-neutral-700)">Probe found: SubsPlease 480/720/1080 · Erai-raws 480/720/1080 · ToonsHub 1080</div>
+<div class="hr"></div>
+<div style="font:600 12px var(--font-body)">Matching</div>
+<div style="display:flex;flex-direction:column;gap:8px;font-size:13px"><div style="border:2px solid var(--color-divider);padding:6px 8px;color:var(--color-neutral-700)">Search alias: Title Alpha</div><div style="border:2px solid var(--color-divider);padding:6px 8px;color:var(--color-neutral-700)">Display title: Title Alpha</div><div style="border:2px solid var(--color-divider);padding:6px 8px;color:var(--color-neutral-700)">Episode offset: 0</div></div>
+<div style="display:flex;gap:8px;margin-top:6px"><button class="btn btn-primary" style="white-space:nowrap;flex:none">Save</button><button class="btn btn-ghost" style="margin-left:auto;white-space:nowrap;flex:none">Remove show…</button></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1c Library — rows -->
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Library · frozen Today card + one row per show (as specced)</div>
+<div class="dv-card" style="width:820px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span>Season</span><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Library</span><span>Activity</span><span>Settings</span><span>AniList ↗</span></div>
+</div>
+<div style="padding:16px 20px;border-bottom:2px solid var(--color-divider);background:var(--color-neutral-100)">
+<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px"><span style="font:700 15px var(--font-heading)">Today</span><span style="font-size:12px;color:var(--color-neutral-700)">frozen · downloaded in last 24 h</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ today }}" as="t" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:10px;border:2px solid var(--color-divider);padding:8px 12px;font-size:13px;background:var(--color-bg)"><span style="color:var(--color-accent)">▶</span><span style="font-weight:600">{{ t.title }}</span><span>– {{ t.ep }}</span><span style="color:var(--color-neutral-700)">{{ t.at }}</span></div></sc-for>
+</div>
+</div>
+<sc-for list="{{ shows }}" as="s" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1.3fr);height:200px;margin:16px 20px 0;border:2px solid var(--color-divider);border-radius:4px;overflow:hidden;background:var(--color-bg)">
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:6px">
+<div style="font:700 17px/1.2 var(--font-heading)">{{ s.en }}</div>
+<div style="font-size:13px;color:var(--color-neutral-700)">Ep {{ s.aired }} of {{ s.total }} aired · {{ s.dl }} downloaded</div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button class="btn btn-primary" style="white-space:nowrap;flex:none">▶ Play Ep {{ s.latest }}</button><span style="font-size:12px;color:var(--color-neutral-700)">Next: Ep {{ s.next }} in {{ s.nextIn }}</span></div>
+</div>
+<div style="width:1px;background:var(--color-neutral-300);margin:18px 0"></div>
+<div style="overflow-y:auto;min-width:0">
+<sc-for list="{{ s.eps }}" as="e" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:34px minmax(0,1fr) 64px 70px 22px;gap:8px;padding:8px 16px;border-bottom:2px solid var(--color-neutral-200);font-size:12px;align-items:center"><span style="font-weight:700">{{ e.n }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ e.file }}</span><span>{{ e.size }}</span><span style="color:var(--color-neutral-700)">{{ e.left }}</span><span style="color:var(--color-accent)">{{ e.icon }}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<div style="height:16px"></div>
+</div>
+</div>
+
+<!-- 1d Library — feed -->
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Library · date feed on the left, shows as a filter on the right</div>
+<div class="dv-card" style="width:820px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span>Season</span><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Library</span><span>Activity</span><span>Settings</span><span>AniList ↗</span></div>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
+<div style="border-right:2px solid var(--color-divider)">
+<sc-for list="{{ feed }}" as="g" hint-placeholder-count="3">
+<div style="padding:10px 20px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700);background:var(--color-neutral-100)">{{ g.label }}</div>
+<sc-for list="{{ g.items }}" as="i" hint-placeholder-count="2">
+<div style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 20px;border-bottom:2px solid var(--color-neutral-200)"><div style="height:40px;background:var(--color-neutral-200)"></div><div style="min-width:0"><div style="font:700 14px var(--font-heading)">{{ i.title }} – {{ i.ep }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ i.meta }}</div></div><button class="btn btn-secondary" style="white-space:nowrap;flex:none">▶ Play</button></div>
+</sc-for>
+</sc-for>
+</div>
+<div>
+<div style="padding:10px 16px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Shows</div>
+<sc-for list="{{ shows }}" as="s" hint-placeholder-count="4">
+<div style="padding:12px 16px;border-bottom:2px solid var(--color-neutral-200);display:flex;flex-direction:column;gap:6px"><div style="display:flex;font-size:13px"><span style="font-weight:700">{{ s.en }}</span><span style="margin-left:auto;color:var(--color-neutral-700)">{{ s.dl }}/{{ s.total }}</span></div><div style="height:6px;background:var(--color-neutral-200)"><div style="height:6px;background:var(--color-text);width:{{ s.pct }}"></div></div></div>
+</sc-for>
+<div style="padding:12px 16px;font-size:12px;color:var(--color-neutral-700)">Click a show to filter the feed and see all its files.</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1e Activity -->
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Activity · live downloads + event log</div>
+<div class="dv-card" style="width:820px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span>Season</span><span>Library</span><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Activity <span class="tag tag-accent">1</span></span><span>Settings</span><span>AniList ↗</span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:2px solid var(--color-divider)">
+<sc-for list="{{ jobs }}" as="j" hint-placeholder-count="4"><div style="padding:12px 16px;border-right:2px solid var(--color-neutral-200);display:flex;flex-direction:column;gap:4px"><span style="font:600 13px var(--font-body)">{{ j.name }}</span><span style="font-size:12px;color:var(--color-neutral-700)">{{ j.when }}</span><button class="btn btn-ghost" style="align-self:flex-start;padding-left:0;white-space:nowrap">Run now</button></div></sc-for>
+</div>
+<div style="padding:10px 20px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Downloading</div>
+<sc-for list="{{ downloads }}" as="d" hint-placeholder-count="2">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 160px 70px 60px;gap:12px;align-items:center;padding:10px 20px;border-bottom:2px solid var(--color-neutral-200);font-size:13px"><span style="font-weight:600">{{ d.name }}</span><div style="height:8px;background:var(--color-neutral-200)"><div style="height:8px;background:var(--color-accent);width:{{ d.pct }}"></div></div><span>{{ d.speed }}</span><span style="color:var(--color-neutral-700)">{{ d.eta }}</span></div>
+</sc-for>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:2px solid var(--color-divider)"><span style="font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Log</span><div style="margin-left:auto;display:flex;border:2px solid var(--color-divider);font-size:12px"><span style="padding:4px 10px;background:var(--color-text);color:var(--color-bg)">All</span><span style="padding:4px 10px">Warn</span><span style="padding:4px 10px">Error</span></div></div>
+<sc-for list="{{ log }}" as="l" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:50px 56px minmax(0,1fr) auto;gap:12px;padding:8px 20px;border-bottom:2px solid var(--color-neutral-200);font-size:12px;align-items:center"><span style="color:var(--color-neutral-700)">{{ l.t }}</span><span style="font-weight:700;color:{{ l.c }}">{{ l.lvl }}</span><span>{{ l.msg }}</span><span style="color:var(--color-accent-700)">{{ l.act }}</span></div>
+</sc-for>
+</div>
+</div>
+
+<!-- 1f Settings -->
+<div class="dv-opt" id="1f">
+<div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Settings · grouped, two-column grid</div>
+<div class="dv-card" style="width:820px">
+<div style="display:flex;align-items:center;gap:24px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:18px;font-size:14px"><span>Season</span><span>Library</span><span>Activity</span><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">Settings</span><span>AniList ↗</span></div>
+</div>
+<sc-for list="{{ settings }}" as="grp" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:180px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
+<div style="padding:16px 20px;font:700 14px var(--font-heading);border-right:2px solid var(--color-divider)">{{ grp.name }}</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr))">
+<sc-for list="{{ grp.fields }}" as="f" hint-placeholder-count="2"><div style="padding:12px 16px;border-bottom:2px solid var(--color-neutral-200);display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--color-neutral-700)">{{ f.k }}</span><div style="border:2px solid var(--color-divider);padding:6px 8px;font-size:13px">{{ f.v }}</div></div></sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<!-- 1g Remove dialog -->
+<div class="dv-opt" id="1g">
+<div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Remove flow · Season in remove mode → ✕ → dialog</div>
+<div class="dv-card" style="width:620px;position:relative">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:2px solid var(--color-divider)"><span style="font-size:13px;font-weight:600">FALL 2026</span><button class="btn btn-primary" style="margin-left:auto;white-space:nowrap;flex:none">Done removing</button></div>
+<div style="position:relative;height:120px;padding:16px 20px;margin:16px 20px 0;border:2px solid var(--color-divider);border-radius:4px;overflow:hidden;background:var(--color-bg)"><div style="font:700 17px var(--font-heading)">Title Alpha</div><div style="font-size:13px;color:var(--color-neutral-700)">Taitoru Arufa</div><span style="position:absolute;top:0;right:0;width:36px;height:36px;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">✕</span></div>
+<div style="position:relative;height:120px;padding:16px 20px;margin:16px 20px 0;border:2px solid var(--color-divider);border-radius:4px;overflow:hidden;background:var(--color-bg);margin-bottom:16px"><div style="font:700 17px var(--font-heading)">Title Bravo</div><span style="position:absolute;top:0;right:0;width:36px;height:36px;border-left:2px solid var(--color-divider);border-bottom:2px solid var(--color-divider);display:flex;align-items:center;justify-content:center;font-weight:700">✕</span></div>
+<div style="position:absolute;inset:0;background:color-mix(in oklch, var(--color-text) 45%, transparent);display:flex;align-items:center;justify-content:center">
+<div style="width:420px;background:var(--color-bg);border:2px solid var(--color-divider);box-shadow:var(--shadow-lg);padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="font:700 18px var(--font-heading)">Remove Title Alpha</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--color-neutral-700)">AniList status</span><div style="display:flex;border:2px solid var(--color-divider);font-size:13px"><span style="flex:1;padding:6px 8px;background:var(--color-text);color:var(--color-bg)">Completed</span><span style="flex:1;padding:6px 8px">Dropped</span><span style="flex:1;padding:6px 8px">Paused</span><span style="flex:1;padding:6px 8px">Planning</span></div></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--color-neutral-700)">Score (your format: 100-point)</span><div style="border:2px solid var(--color-divider);padding:6px 8px;font-size:13px;width:90px">82</div></div>
+<div style="font-size:12px;color:var(--color-neutral-700);line-height:1.5">Updates AniList, moves 5 files (740 MB) to Trash, removes the show's settings. If AniList fails, nothing is deleted.</div>
+<div style="display:flex;gap:8px"><button class="btn btn-primary" style="white-space:nowrap;flex:none">Update &amp; remove</button><button class="btn btn-ghost" style="white-space:nowrap;flex:none">Cancel</button></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 1h AniList window -->
+<div class="dv-opt" id="1h">
+<div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>AniList tab · opens anilist.co in a second native app window (full login + interaction)</div>
+<div style="display:flex;gap:20px;align-items:flex-start">
+<div class="dv-card" style="width:460px">
+<div style="display:flex;align-items:center;gap:18px;padding:14px 20px;border-bottom:2px solid var(--color-divider)">
+<strong style="font:700 16px var(--font-heading)">anidash</strong>
+<div style="display:flex;gap:14px;font-size:14px"><span>Season</span><span>Library</span><span>Activity</span><span>Settings</span><span style="color:var(--color-accent-700);font-weight:600;border-bottom:2px solid var(--color-accent)">AniList ↗</span></div>
+</div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="font:700 17px var(--font-heading)">AniList is open in its own window</div>
+<div style="font-size:13px;color:var(--color-neutral-700);line-height:1.5">Same app, separate window, so the site and your login work normally. Changes you make there are picked up on the next sync.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" style="white-space:nowrap;flex:none">Bring window to front</button><button class="btn btn-secondary" style="white-space:nowrap;flex:none">Sync now</button><button class="btn btn-ghost" style="white-space:nowrap;flex:none">Open in browser instead</button></div>
+</div>
+</div>
+<div class="dv-card" style="width:520px">
+<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:2px solid var(--color-divider);background:var(--color-neutral-100);font-size:12px"><span style="width:10px;height:10px;border:2px solid var(--color-divider)"></span><span style="width:10px;height:10px;border:2px solid var(--color-divider)"></span><span style="font-weight:600;margin-left:6px">AniList — anidash</span><span style="margin-left:auto;color:var(--color-neutral-700)">◂ ▸ ↻ · anilist.co/home</span></div>
+<div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+<div style="height:28px;background:var(--color-neutral-200)"></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px"><div style="height:110px;background:var(--color-neutral-200)"></div><div style="height:110px;background:var(--color-neutral-200)"></div><div style="height:110px;background:var(--color-neutral-200)"></div><div style="height:110px;background:var(--color-neutral-200)"></div></div>
+<div style="height:10px;background:var(--color-neutral-200);width:70%"></div><div style="height:10px;background:var(--color-neutral-200);width:50%"></div>
+<div style="font-size:12px;color:var(--color-neutral-700)">Real anilist.co rendered by the system webview; session cookie persists between launches.</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "go with <a class="dv-oid" href="#1b">1b</a> for Season and <a class="dv-oid" href="#1c">1c</a> for Library" · "merge Activity into the nav as a drawer" · "add an onboarding / first-run flow"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (title, n, total) => Array.from({ length: n }, (_, i) => {
+      const k = n - i, nn = String(k).padStart(2, '0');
+      return { n: nn, file: `${title} - ${nn}.mkv`, size: '148 MB', left: `${Math.max(1, 30 - (n - k) * 7)} d left`, icon: '▶' };
+    });
+    const shows = [
+      { en: 'Title Alpha', jp: 'Taitoru Arufa', day: 'Fri 23:00', g1: 'SubsPlease', r1: '480p', g2: 'Erai-raws', r2: '480p', probe: '✓ 3 groups', aired: 5, total: 12, dl: 5, latest: '05', next: '06', nextIn: '2d 4h' },
+      { en: 'Title Bravo', jp: 'Taitoru Burabō', day: 'Sat 01:30', g1: 'SubsPlease', r1: '480p', g2: 'Erai-raws', r2: '720p', probe: '✓ 2 groups', aired: 4, total: 24, dl: 4, latest: '04', next: '05', nextIn: '3d 7h' },
+      { en: 'Title Charlie S2', jp: 'Taitoru Chārī 2nd Season', day: 'Sun 17:00', g1: 'Erai-raws', r1: '480p', g2: '—', r2: '—', probe: '! offset 12', aired: 3, total: '?', dl: 2, latest: '02', next: '04', nextIn: '4d 0h' }
+    ].map(s => ({ ...s, eps: mk(s.en, s.dl, s.total), pct: typeof s.total === 'number' ? Math.round(s.dl / s.total * 100) + '%' : '20%' }));
+    shows[2].eps.unshift({ n: '03', file: 'No release found yet · fallback in 6 h', size: '', left: '', icon: '↻' });
+    return {
+      shows,
+      untracked: ['Title Delta', 'Title Echo', 'Title Foxtrot'],
+      today: [{ title: 'Title Alpha', ep: '05', at: '07:12' }, { title: 'Title Bravo', ep: '04', at: '02:48' }],
+      feed: [
+        { label: 'Today', items: [{ title: 'Title Alpha', ep: '05', meta: 'SubsPlease 480p · 148 MB · deletes in 30 d' }, { title: 'Title Bravo', ep: '04', meta: 'SubsPlease 480p · 151 MB · deletes in 30 d' }] },
+        { label: 'Yesterday', items: [{ title: 'Title Charlie S2', ep: '02', meta: 'Erai-raws 480p · 162 MB · deletes in 29 d' }] },
+        { label: 'This week', items: [{ title: 'Title Alpha', ep: '04', meta: 'SubsPlease 480p · 147 MB · deletes in 23 d' }] }
+      ],
+      jobs: [{ name: 'Sync schedule', when: 'daily 06:00 · ran 06:00' }, { name: 'Poll releases', when: 'every 20 min · 14:20' }, { name: 'Purge', when: 'daily 04:00 · 2 trashed' }, { name: 'AniList retry', when: 'every 15 min · 0 queued' }],
+      downloads: [{ name: 'Title Charlie S2 – 03 (Erai-raws 480p)', pct: '62%', speed: '2.1 MB/s', eta: '0:41' }],
+      log: [
+        { t: '14:00', lvl: 'ERROR', c: 'var(--color-accent-700)', msg: 'Title Charlie S2 – 03: SubsPlease not found after 18 h', act: 'Retry' },
+        { t: '07:12', lvl: 'INFO', c: 'var(--color-text)', msg: 'Title Alpha – 05 downloaded · AniList progress → 5', act: '' },
+        { t: '06:00', lvl: 'INFO', c: 'var(--color-text)', msg: 'Schedule synced · 3 shows, 4 upcoming episodes', act: '' },
+        { t: '04:00', lvl: 'INFO', c: 'var(--color-text)', msg: 'Purged 2 files to Trash (Title Delta – 01, 02)', act: 'Undo' },
+        { t: '02:48', lvl: 'WARN', c: 'var(--color-accent-700)', msg: 'AniList 429 · retried after 65 s', act: '' }
+      ],
+      settings: [
+        { name: 'Library', fields: [{ k: 'Library path', v: '~/Anime' }, { k: 'Retention (days after download)', v: '30' }, { k: 'Disk usage', v: '1.9 GB of 412 GB free' }, { k: 'Naming', v: '[Title] - ##.ext' }] },
+        { name: 'Fetching', fields: [{ k: 'Poll interval', v: '20 min' }, { k: 'Fallback after', v: '24 h' }, { k: 'Nyaa base URL', v: 'https://nyaa.si' }, { k: 'Give up after', v: '7 days' }] },
+        { name: 'Torrent', fields: [{ k: 'qBittorrent', v: '127.0.0.1:8080 · ✓ connected' }, { k: 'Stop seeding', v: 'ratio 1.0 or 24 h' }] },
+        { name: 'Accounts', fields: [{ k: 'AniList', v: '@you · token expires in 351 d' }, { k: 'Player', v: 'vlc --fullscreen' }] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

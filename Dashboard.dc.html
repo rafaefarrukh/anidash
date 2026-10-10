@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-181d6dc2-bfb7-4768-9c6a-e728d29d6559/styles.css">
+<script src="_ds/modernist-181d6dc2-bfb7-4768-9c6a-e728d29d6559/_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}*{box-sizing:border-box}a{color:var(--color-accent-700)}a:hover{color:var(--color-accent-600)}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column">
+
+<header style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:28px;padding:0 24px;height:60px;border-bottom:2px solid var(--color-divider);background:var(--color-bg)">
+<strong style="font:700 18px var(--font-heading);letter-spacing:-0.01em">anidash</strong>
+<nav style="display:flex;gap:22px;height:100%">
+<sc-for list="{{ nav }}" as="n" hint-placeholder-count="7">
+<button onClick="{{ n.go }}" style="display:flex;align-items:center;gap:8px;height:100%;padding:0;background:none;border:0;border-bottom:2px solid {{ n.border }};margin-bottom:-2px;font:{{ n.weight }} 14px var(--font-body);color:{{ n.color }};cursor:pointer" style-hover="color:var(--color-accent-700)">{{ n.label }}<sc-if value="{{ n.hasBadge }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent">{{ n.badge }}</span></sc-if></button>
+</sc-for>
+</nav>
+<div style="margin-left:auto;display:flex;align-items:center;gap:22px;height:100%">
+<sc-for list="{{ links }}" as="l" hint-placeholder-count="3">
+<button onClick="{{ l.go }}" style="height:100%;padding:0;background:none;border:0;font:400 14px var(--font-body);color:var(--color-text);cursor:pointer;white-space:nowrap" style-hover="color:var(--color-accent-700)">{{ l.label }}</button>
+</sc-for>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-neutral-700);white-space:nowrap">
+<span style="width:8px;height:8px;background:{{ statusDot }}"></span>{{ statusText }}
+</div>
+</div>
+</header>
+
+<sc-if value="{{ isSeason }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 24px;border-bottom:2px solid var(--color-divider);flex-wrap:wrap">
+<div style="display:flex;border:2px solid var(--color-divider)">
+<button onClick="{{ prevSeason }}" aria-label="Previous season" style="padding:6px 10px;background:none;border:0;cursor:pointer;color:inherit;display:flex" style-hover="background:var(--color-neutral-100)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"></path></svg></button>
+<span style="padding:6px 14px;font:600 13px var(--font-body);border-left:2px solid var(--color-divider);border-right:2px solid var(--color-divider);min-width:118px">{{ seasonLabel }}</span>
+<button onClick="{{ nextSeason }}" aria-label="Next season" style="padding:6px 10px;background:none;border:0;cursor:pointer;color:inherit;display:flex" style-hover="background:var(--color-neutral-100)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"></path></svg></button>
+</div>
+<button class="btn btn-secondary" onClick="{{ syncAniList }}" style="white-space:nowrap;flex:none">Sync AniList</button>
+<button class="btn btn-secondary" onClick="{{ probeAll }}" style="white-space:nowrap;flex:none">Probe all</button>
+<button class="{{ removeBtnClass }}" onClick="{{ toggleRemove }}" style="margin-left:auto;white-space:nowrap;flex:none">{{ removeBtnLabel }}</button>
+</div>
+<div style="flex:1;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr)">
+<div style="border-right:2px solid var(--color-divider);min-width:0">
+<div style="display:grid;grid-template-columns:minmax(0,2fr) 96px minmax(0,1.4fr) 100px 40px;gap:12px;padding:10px 24px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)"><span>Title</span><span>Airs</span><span>Release</span><span>Probe</span><span></span></div>
+<sc-for list="{{ rows }}" as="s" hint-placeholder-count="3">
+<div onClick="{{ s.select }}" style="display:grid;grid-template-columns:minmax(0,2fr) 96px minmax(0,1.4fr) 100px 40px;gap:12px;padding:12px 24px;border-bottom:2px solid var(--color-neutral-200);font-size:13px;align-items:center;cursor:pointer;background:{{ s.bg }};box-shadow:inset 4px 0 0 {{ s.mark }}" style-hover="background:var(--color-neutral-100)">
+<div style="min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.en }}</div><div style="font-size:12px;color:var(--color-neutral-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.romaji }}</div></div>
+<span>{{ s.airs }}</span>
+<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.release }}</span>
+<span style="color:{{ s.probeColor }};font-weight:600">{{ s.probe }}</span>
+<span style="display:flex;justify-content:flex-end"><sc-if value="{{ removeMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ s.remove }}" aria-label="Remove" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--color-accent);color:var(--color-bg);border:0;cursor:pointer" style-hover="background:var(--color-accent-600)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"></path></svg></button></sc-if></span>
+</div>
+</sc-for>
+<sc-if value="{{ noTracked }}" hint-placeholder-val="{{ false }}"><div style="padding:24px;font-size:14px;color:var(--color-neutral-700)">Nothing tracked this season yet. Track shows below.</div></sc-if>
+<div style="padding:22px 24px 10px;font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700);border-bottom:2px solid var(--color-divider)">Not tracked · {{ seasonLabel }}</div>
+<sc-for list="{{ untracked }}" as="u" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 96px auto;gap:12px;align-items:center;padding:8px 24px;border-bottom:2px solid var(--color-neutral-200);font-size:13px">
+<div style="min-width:0"><div style="font-weight:600">{{ u.en }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ u.romaji }}</div></div>
+<span>{{ u.airs }}</span>
+<button class="btn btn-ghost" onClick="{{ u.track }}" style="white-space:nowrap;flex:none">+ Track</button>
+</div>
+</sc-for>
+</div>
+
+<aside style="background:var(--color-neutral-100);min-width:0">
+<sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+<div style="position:sticky;top:60px;padding:20px 24px 28px;display:flex;flex-direction:column;gap:14px">
+<div style="font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Selected</div>
+<div style="display:flex;flex-direction:column;gap:4px"><div style="font:700 22px/1.15 var(--font-heading);letter-spacing:-0.01em">{{ sel.en }}</div><div style="font-size:13px;color:var(--color-neutral-700)">{{ sel.romaji }}</div></div>
+<p style="margin:0;font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;text-wrap:pretty">{{ sel.desc }}</p>
+<div style="display:flex;gap:16px;font-size:12px;color:var(--color-neutral-700)"><span>Airs {{ sel.airs }}</span><a href="{{ sel.url }}" target="_blank" rel="noopener">Open on AniList ↗</a></div>
+<div class="hr" style="margin:0"></div>
+<div style="display:flex;align-items:baseline"><span style="font:600 13px var(--font-body)">Release preference</span><button class="btn btn-ghost" onClick="{{ sel.probe }}" style="margin-left:auto;white-space:nowrap;padding-right:0">{{ sel.probeBtn }}</button></div>
+<div style="display:grid;grid-template-columns:20px minmax(0,1fr) 96px;gap:8px;align-items:center;font-size:13px">
+<span style="font-weight:700">1</span>
+<select class="input" value="{{ d.g0 }}" onChange="{{ setG0 }}"><sc-for list="{{ groupOpts1 }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select>
+<select class="input" value="{{ d.r0 }}" onChange="{{ setR0 }}"><sc-for list="{{ resOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select>
+<span style="font-weight:700">2</span>
+<select class="input" value="{{ d.g1 }}" onChange="{{ setG1 }}"><sc-for list="{{ groupOpts2 }}" as="o" hint-placeholder-count="2"><option value="{{ o }}">{{ o }}</option></sc-for></select>
+<select class="input" value="{{ d.r1 }}" onChange="{{ setR1 }}"><sc-for list="{{ resOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select>
+</div>
+<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" checked="{{ d.trusted }}" onChange="{{ setTrusted }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>Trusted uploaders only</label>
+<div style="font-size:12px;line-height:1.5;color:var(--color-neutral-700)">{{ sel.probeFound }}</div>
+<div class="hr" style="margin:0"></div>
+<span style="font:600 13px var(--font-body)">Matching</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="field"><label>Search alias (Nyaa query)</label><input class="input" value="{{ d.alias }}" onChange="{{ setAlias }}"></input></div>
+<div class="field"><label>Display title (folder and file names)</label><input class="input" value="{{ d.display }}" onChange="{{ setDisplay }}"></input></div>
+<div class="field"><label>Episode offset · release “13” with offset 12 → Ep 1</label><input class="input" type="number" value="{{ d.offset }}" onChange="{{ setOffset }}" style="width:110px"></input></div>
+</div>
+<div style="font-size:12px;color:var(--color-neutral-700)">Files: {{ namePreview }}</div>
+<div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-primary" onClick="{{ saveDraft }}" disabled="{{ notDirty }}" style="white-space:nowrap;flex:none">Save</button><button class="btn btn-ghost" onClick="{{ sel.remove }}" style="margin-left:auto;white-space:nowrap;flex:none">Remove show…</button></div>
+</div>
+</sc-if>
+<sc-if value="{{ noSel }}" hint-placeholder-val="{{ false }}"><div style="padding:24px;font-size:13px;color:var(--color-neutral-700)">Select a show to edit its release preferences.</div></sc-if>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ false }}">
+<div style="position:sticky;top:60px;z-index:10;padding:16px 24px;border-bottom:2px solid var(--color-divider);background:var(--color-neutral-100)">
+<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px"><span style="font:700 16px var(--font-heading)">Today</span><span style="font-size:12px;color:var(--color-neutral-700)">Downloaded in the last 24 h</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ today }}" as="t" hint-placeholder-count="2">
+<button onClick="{{ t.play }}" style="display:flex;align-items:center;gap:10px;border:2px solid var(--color-divider);padding:8px 12px;font:13px var(--font-body);background:var(--color-bg);color:var(--color-text);cursor:pointer" style-hover="border-color:var(--color-accent)"><svg width="12" height="12" viewBox="0 0 24 24" fill="var(--color-accent)" stroke="var(--color-accent)" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg><span style="font-weight:600">{{ t.title }}</span><span>– {{ t.ep }}</span><span style="color:var(--color-neutral-700)">{{ t.at }}</span></button>
+</sc-for>
+<sc-if value="{{ noToday }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--color-neutral-700)">Nothing new in the last 24 hours.</span></sc-if>
+</div>
+</div>
+<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:16px;margin-top:16px">
+<sc-for list="{{ lib }}" as="s" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(240px,1fr) 1px minmax(0,1.6fr);height:208px;border:2px solid var(--color-divider);background:var(--color-bg)">
+<div style="padding:16px 20px;display:flex;flex-direction:column;gap:6px;min-width:0">
+<div style="font:700 18px/1.2 var(--font-heading)">{{ s.en }}</div>
+<div style="font-size:13px;color:var(--color-neutral-700)">{{ s.sub }}</div>
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+<sc-if value="{{ s.hasLatest }}" hint-placeholder-val="{{ true }}"><button class="btn btn-primary" onClick="{{ s.play }}" style="white-space:nowrap;flex:none;gap:8px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>{{ s.playLabel }}</button></sc-if>
+<span style="font-size:12px;color:var(--color-neutral-700)">{{ s.next }}</span>
+</div>
+</div>
+<div style="width:1px;background:var(--color-neutral-300);margin:18px 0"></div>
+<div style="overflow-y:auto;min-width:0">
+<sc-for list="{{ s.eps }}" as="e" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:34px minmax(0,1fr) 64px 56px 70px 32px;gap:8px;padding:6px 16px;border-bottom:2px solid var(--color-neutral-200);font-size:12px;align-items:center;min-height:40px">
+<span style="font-weight:700">{{ e.n }}</span>
+<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:{{ e.color }}">{{ e.file }}</span><sc-if value="{{ e.hasBar }}" hint-placeholder-val="{{ false }}"><div style="flex:none;width:72px;height:6px;background:var(--color-neutral-200)"><div style="height:6px;background:var(--color-accent);width:{{ e.pct }}"></div></div></sc-if></div>
+<span>{{ e.size }}</span>
+<span style="color:var(--color-neutral-700)">{{ e.date }}</span>
+<span style="color:var(--color-neutral-700)">{{ e.left }}</span>
+<sc-if value="{{ e.ok }}" hint-placeholder-val="{{ true }}"><button onClick="{{ e.play }}" aria-label="Play" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--color-accent);cursor:pointer" style-hover="background:var(--color-accent-100)"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></button></sc-if>
+<sc-if value="{{ e.canCancel }}" hint-placeholder-val="{{ false }}"><button onClick="{{ e.cancel }}" aria-label="Cancel and search again" title="Cancel this release and search for another" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--color-accent-700);cursor:pointer" style-hover="background:var(--color-accent-100)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></sc-if>
+<sc-if value="{{ e.canRetry }}" hint-placeholder-val="{{ false }}"><button onClick="{{ e.retry }}" aria-label="Retry" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--color-accent-700);cursor:pointer" style-hover="background:var(--color-accent-100)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg></button></sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ s.noEps }}" hint-placeholder-val="{{ false }}"><div style="padding:16px;font-size:12px;color:var(--color-neutral-700)">No episodes yet.</div></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isActivity }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));border-bottom:2px solid var(--color-divider)">
+<sc-for list="{{ jobs }}" as="j" hint-placeholder-count="5">
+<div style="padding:14px 24px;border-right:2px solid var(--color-neutral-200);display:flex;flex-direction:column;gap:4px">
+<span style="font:600 13px var(--font-body)">{{ j.label }}</span>
+<span style="font-size:12px;color:var(--color-neutral-700)">{{ j.when }}</span>
+<button class="btn btn-ghost" onClick="{{ j.run }}" style="align-self:flex-start;padding-left:0;white-space:nowrap">Run now</button>
+</div>
+</sc-for>
+</div>
+<div style="padding:10px 24px;border-bottom:2px solid var(--color-divider);font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Downloading</div>
+<sc-for list="{{ downloads }}" as="d" hint-placeholder-count="1">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 200px 44px 80px 60px;gap:12px;align-items:center;padding:10px 24px;border-bottom:2px solid var(--color-neutral-200);font-size:13px">
+<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ d.name }}</span>
+<div style="height:8px;background:var(--color-neutral-200)"><div style="height:8px;background:var(--color-accent);width:{{ d.pct }}"></div></div>
+<span>{{ d.pct }}</span><span>{{ d.speed }}</span><span style="color:var(--color-neutral-700)">{{ d.eta }}</span>
+</div>
+</sc-for>
+<sc-if value="{{ noDownloads }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 24px;font-size:13px;color:var(--color-neutral-700);border-bottom:2px solid var(--color-neutral-200)">Nothing downloading.</div></sc-if>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 24px;border-bottom:2px solid var(--color-divider);margin-top:20px;border-top:2px solid var(--color-divider)">
+<span style="font:600 11px var(--font-body);text-transform:uppercase;letter-spacing:0.06em;color:var(--color-neutral-700)">Log</span>
+<div style="margin-left:auto;display:flex;border:2px solid var(--color-divider)">
+<sc-for list="{{ levels }}" as="lv" hint-placeholder-count="3"><button onClick="{{ lv.pick }}" style="padding:4px 12px;font:12px var(--font-body);border:0;cursor:pointer;background:{{ lv.bg }};color:{{ lv.fg }}">{{ lv.label }}</button></sc-for>
+</div>
+</div>
+<sc-for list="{{ log }}" as="l" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:96px 56px minmax(0,1fr) auto;gap:12px;padding:8px 24px;border-bottom:2px solid var(--color-neutral-200);font-size:12px;align-items:center;min-height:38px">
+<span style="color:var(--color-neutral-700)">{{ l.t }}</span>
+<span style="font-weight:700;color:{{ l.c }}">{{ l.lvl }}</span>
+<span>{{ l.msg }}</span>
+<sc-if value="{{ l.hasAct }}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost" onClick="{{ l.run }}" style="white-space:nowrap;padding-top:2px;padding-bottom:2px;min-height:0">{{ l.act }}</button></sc-if>
+</div>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
+<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Library</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
+<div class="field"><label>Library path</label><input class="input" value="{{ st.library_path }}" onChange="{{ sf.library_path }}"></input></div>
+<div class="field"><label>Delete episodes after (days)</label><input class="input" type="number" value="{{ st.retention_days }}" onChange="{{ sf.retention_days }}"></input></div>
+<div class="field"><label>Disk usage</label><div style="font-size:14px;padding:8px 0">{{ diskText }}</div></div>
+<div class="field"><label>Naming</label><div style="font-size:14px;padding:8px 0">&lt;Title&gt; - ##.ext · deletes go to Trash</div></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
+<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Fetching</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
+<div class="field"><label>Poll interval (minutes)</label><input class="input" type="number" value="{{ st.poll_minutes }}" onChange="{{ sf.poll_minutes }}"></input></div>
+<div class="field"><label>Fall back to preference 2 after (hours)</label><input class="input" type="number" value="{{ st.fallback_hours }}" onChange="{{ sf.fallback_hours }}"></input></div>
+<div class="field"><label>Nyaa base URL</label><input class="input" value="{{ st.nyaa_base }}" onChange="{{ sf.nyaa_base }}"></input></div>
+<div class="field"><label>Give up after (days)</label><input class="input" type="number" value="{{ st.give_up_days }}" onChange="{{ sf.give_up_days }}"></input></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
+<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">qBittorrent</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
+<div class="field"><label>Web UI address</label><input class="input" value="{{ st.qbit_url }}" onChange="{{ sf.qbit_url }}"></input></div>
+<div class="field"><label>Connection</label><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" onClick="{{ testQbit }}" style="white-space:nowrap;flex:none">Test connection</button><span style="font-size:13px">{{ qbitText }}</span></div></div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
+<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Accounts</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
+<div class="field"><label>AniList</label><div style="display:flex;align-items:center;gap:12px"><span style="font-size:14px">{{ anilistText }}</span><button class="btn btn-ghost" onClick="{{ reconnect }}" style="white-space:nowrap;flex:none">Reconnect</button></div></div>
+<div class="field"><label>VLC arguments</label><input class="input" value="{{ st.vlc_args }}" onChange="{{ sf.vlc_args }}"></input></div>
+</div>
+</div>
+<div style="display:flex;gap:8px;padding:18px 24px"><button class="btn btn-primary" onClick="{{ saveSettings }}" disabled="{{ settingsClean }}" style="white-space:nowrap;flex:none">Save settings</button><button class="btn btn-ghost" onClick="{{ resetSettings }}" disabled="{{ settingsClean }}" style="white-space:nowrap;flex:none">Discard</button></div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ hasDialog }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop" style="z-index:50">
+<div class="dialog" style="border:2px solid var(--color-divider);background:var(--color-bg);width:min(460px,100%)">
+<div class="dialog-title">Remove {{ dlg.title }}</div>
+<div class="field"><label>AniList status</label>
+<div style="display:flex;border:2px solid var(--color-divider)"><sc-for list="{{ dlg.statuses }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.pick }}" style="flex:1;padding:8px;text-align:left;font:13px var(--font-body);border:0;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.label }}</button></sc-for></div>
+</div>
+<div class="field"><label>Score ({{ dlg.formatLabel }}) · leave empty for no score</label><input class="input" type="number" min="0" max="{{ dlg.max }}" step="{{ dlg.step }}" value="{{ dlg.score }}" onChange="{{ dlg.setScore }}" style="width:110px"></input></div>
+<div class="dialog-body" style="font-size:13px;line-height:1.5">{{ dlg.summary }}</div>
+<sc-if value="{{ dlg.hasError }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-accent-700);font-weight:600">{{ dlg.error }}</div></sc-if>
+<div style="display:flex;gap:8px"><button class="btn btn-primary" onClick="{{ dlg.confirm }}" disabled="{{ dlg.busy }}" style="white-space:nowrap;flex:none">{{ dlg.confirmLabel }}</button><button class="btn btn-ghost" onClick="{{ closeDialog }}" style="white-space:nowrap;flex:none">Cancel</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;left:24px;bottom:24px;z-index:60;padding:12px 16px;background:var(--color-text);color:var(--color-bg);font-size:13px;max-width:420px;box-shadow:var(--shadow-md)">{{ toast }}</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const DAY = 864e5, HOUR = 36e5;
+const SEASONS = ['WINTER', 'SPRING', 'SUMMER', 'FALL'];
+const STATUSES = [['COMPLETED', 'Completed'], ['DROPPED', 'Dropped'], ['PAUSED', 'Paused'], ['PLANNING', 'Planning']];
+const SCORE = { POINT_100: [100, 1, '100-point'], POINT_10_DECIMAL: [10, 0.1, '10-point decimal'], POINT_10: [10, 1, '10-point'], POINT_5: [5, 1, '5-star'], POINT_3: [3, 1, '3-smiley'] };
+const pad = (n, total) => String(n).padStart(total > 99 ? 3 : 2, '0');
+const hm = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+const md = t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
+const until = ms => { if (ms <= 0) return 'now'; const d = Math.floor(ms / DAY), h = Math.floor(ms % DAY / HOUR), m = Math.floor(ms % HOUR / 6e4); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
+const QBIT_STATES = { metaDL: 'Fetching metadata', forcedMetaDL: 'Fetching metadata', downloading: 'Downloading', forcedDL: 'Downloading', stalledDL: 'Stalled · no peers',
+  queuedDL: 'Waiting in queue', stoppedDL: 'Paused', pausedDL: 'Paused', checkingDL: 'Checking', checkingResumeData: 'Checking', allocating: 'Allocating', moving: 'Moving',
+  error: 'Error', missingFiles: 'Files missing', uploading: 'Finishing', forcedUP: 'Finishing', stalledUP: 'Finishing', queuedUP: 'Finishing', stoppedUP: 'Finishing', pausedUP: 'Finishing', checkingUP: 'Finishing' };
+const qbitStatus = s => s ? QBIT_STATES[s] || s : 'not found';
+const mb = b => b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : Math.round(b / 1e6) + ' MB';
+const sanitize = s => (s || '').replace(/[\/\\\0\x00-\x1f]/g, '').replace(/\.\.+/g, '.').replace(/^\.+/, '').trim();
+
+function demoData() {
+  const now = Date.now(), ret = 30;
+  const eps = (display, list) => list.map(([n, ago, size, extra]) => {
+    const dl = now - ago;
+    return { number: n, state: 'done', file_path: `~/Anime/${display}/${display} - ${pad(n)}.mkv`, size_bytes: size * 1e6, downloaded_at: dl, delete_after: dl + ret * DAY, ...extra };
+  });
+  return {
+    anime: [
+      { id: 1001, en: 'Title Alpha', romaji: 'Taitoru Arufa', desc: 'A courier in a flooded city takes one last job across the old districts. Weekly simulcast, 12 episodes.', airs: 'Fri 23:00', total: 12, aired: 5, next_ep: 6, next_at: now + 2 * DAY + 4 * HOUR, alias: 'Taitoru Arufa', display: 'Title Alpha', offset: 0, trusted: true,
+        prefs: [{ group: 'SubsPlease', res: 480 }, { group: 'Erai-raws', res: 480 }], probe: { SubsPlease: [480, 720, 1080], 'Erai-raws': [480, 720, 1080], ToonsHub: [1080] },
+        episodes: eps('Title Alpha', [[5, 6 * HOUR, 148], [4, 7 * DAY + 6 * HOUR, 147], [3, 14 * DAY, 149], [2, 21 * DAY, 146], [1, 28 * DAY, 150]]) },
+      { id: 1002, en: 'Title Bravo', romaji: 'Taitoru Burabō', desc: 'Two rival bakers inherit the same shop and must share the ovens until spring.', airs: 'Sat 01:30', total: 24, aired: 4, next_ep: 5, next_at: now + 3 * DAY + 7 * HOUR, alias: 'Taitoru Burabou', display: 'Title Bravo', offset: 0, trusted: true,
+        prefs: [{ group: 'SubsPlease', res: 480 }, { group: 'Erai-raws', res: 720 }], probe: { SubsPlease: [480, 720, 1080], 'Erai-raws': [720, 1080] },
+        episodes: eps('Title Bravo', [[4, 11 * HOUR, 151], [3, 7 * DAY + 11 * HOUR, 150], [2, 14 * DAY, 152], [1, 21 * DAY, 149]]) },
+      { id: 1003, en: 'Title Charlie S2', romaji: 'Taitoru Chārī 2nd Season', desc: 'The second cour picks up after the tournament arc. Releases continue numbering from season one.', airs: 'Sun 17:00', total: null, aired: 3, next_ep: 4, next_at: now + 4 * DAY, alias: 'Taitoru Chari 2nd Season', display: 'Title Charlie S2', offset: 12, trusted: false,
+        prefs: [{ group: 'SubsPlease', res: 480 }, { group: 'Erai-raws', res: 480 }], probe: null,
+        episodes: [{ number: 3, state: 'downloading', progress: 0.62 }, ...eps('Title Charlie S2', [[2, 1 * DAY + 3 * HOUR, 162], [1, 8 * DAY, 160]])] }
+    ],
+    season: [
+      { id: 1004, en: 'Title Delta', romaji: 'Taitoru Deruta', airs: 'Mon 22:00' },
+      { id: 1005, en: 'Title Echo', romaji: 'Taitoru Ekō', airs: 'Wed 00:30' },
+      { id: 1006, en: 'Title Foxtrot', romaji: 'Taitoru Fokkusutorotto', airs: 'Thu 21:00' }
+    ],
+    downloads: [{ name: 'Title Charlie S2 – 03 · Erai-raws 480p', progress: 0.62, speed: '2.1 MB/s', eta: '0:41' }],
+    jobs: [
+      { name: 'sync_schedule', label: 'Sync schedule', when: 'Daily 06:00 · ran ' + hm(now - 3 * HOUR) },
+      { name: 'poll_releases', label: 'Poll releases', when: 'Every 20 min · next ' + hm(now + 12 * 6e4), next: now + 12 * 6e4 },
+      { name: 'watch_downloads', label: 'Watch downloads', when: 'Every 1 min · 1 active' },
+      { name: 'retry_sync', label: 'AniList retry', when: 'Every 15 min · 0 queued' },
+      { name: 'purge', label: 'Purge', when: 'Daily 04:00 · 2 trashed' }
+    ],
+    events: [
+      { ts: now - 40 * 6e4, level: 'error', anilist_id: 1003, episode: 3, message: 'Title Charlie S2 – 03: SubsPlease not found after 24 h · fell back to Erai-raws', action: 'retry' },
+      { ts: now - 6 * HOUR, level: 'info', message: 'Title Alpha – 05 downloaded · AniList progress → 5' },
+      { ts: now - 7 * HOUR, level: 'info', message: 'Schedule synced · 3 shows, 4 upcoming episodes' },
+      { ts: now - 9 * HOUR, level: 'info', message: 'Purged 2 files to Trash (Title Delta – 01, 02)' },
+      { ts: now - 11 * HOUR, level: 'info', message: 'Title Bravo – 04 downloaded · AniList progress → 4' },
+      { ts: now - 11.2 * HOUR, level: 'warn', message: 'AniList 429 · retried after 65 s' }
+    ],
+    settings: { library_path: '~/Anime', retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, nyaa_base: 'https://nyaa.si', qbit_url: 'http://127.0.0.1:8080', seed_ratio: 1.0, seed_hours: 24, vlc_args: '--fullscreen' },
+    account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 1.9e9, disk_free: 412e9 }
+  };
+}
+
+class Component extends DCLogic {
+  state = { page: 'season', live: false, ready: false, season: 'FALL', year: 2026, anime: [], season_list: [], downloads: [], jobs: [], events: [], settings: {}, sDraft: {}, account: {}, selId: null, draft: null, removeMode: false, dialog: null, level: 'all', toast: '', qbit: '', probing: {}, now: Date.now() };
+
+  componentDidMount() {
+    const p = (location.hash || '').slice(1);
+    if (['season', 'library', 'activity', 'settings'].includes(p)) this.setState({ page: p });
+    this.load();
+    this.tick = setInterval(() => this.setState({ now: Date.now() }), 30000);
+    this.poll = setInterval(() => this.state.live && this.load(true), 15000);
+  }
+  componentWillUnmount() { clearInterval(this.tick); clearInterval(this.poll); clearTimeout(this.toastT); }
+
+  token() { return window.ANIDASH_TOKEN || document.querySelector('meta[name="anidash-token"]')?.content || ''; }
+  async api(method, path, body) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const r = await fetch(path, { method, signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'X-Anidash-Token': this.token() }, body: body ? JSON.stringify(body) : undefined });
+      const ct = r.headers.get('content-type') || '';
+      if (!r.ok) {
+        let m = r.status + ''; try { m = (await r.json()).detail || m; } catch (e) {}
+        if (r.status === 403 && /token/.test(m) && !sessionStorage.getItem('anidash-reloaded')) { sessionStorage.setItem('anidash-reloaded', '1'); location.reload(); }
+        throw new Error(m);
+      }
+      sessionStorage.removeItem('anidash-reloaded');
+      if (!ct.includes('json')) { if (r.status === 204) return null; throw new Error('not json'); }
+      return r.json();
+    } finally { clearTimeout(t); }
+  }
+  say(msg) { clearTimeout(this.toastT); this.setState({ toast: msg }); this.toastT = setTimeout(() => this.setState({ toast: '' }), 3500); }
+
+  async load(quiet) {
+    const { season, year } = this.state;
+    try {
+      const [anime, season_list, downloads, jobs, events, settings, account] = await Promise.all([
+        this.api('GET', '/api/anime'), this.api('GET', `/api/season?season=${season}&year=${year}`), this.api('GET', '/api/downloads'),
+        this.api('GET', '/api/jobs'), this.api('GET', '/api/events?limit=200'), this.api('GET', '/api/settings'), this.api('GET', '/api/account')]);
+      this.setState(s => ({ live: true, ready: true, anime, season_list, downloads, jobs, events, settings, account, sDraft: quiet && s.sDraft._dirty ? s.sDraft : { ...settings } }), () => !quiet && this.ensureSel());
+    } catch (e) {
+      if (quiet || this.state.ready) return;
+      const d = demoData();
+      this.setState({ live: false, ready: true, anime: d.anime, season_list: d.season, downloads: d.downloads, jobs: d.jobs, events: d.events, settings: d.settings, sDraft: { ...d.settings }, account: d.account }, () => this.ensureSel());
+    }
+  }
+  ensureSel() { const a = this.state.anime; if (!a.find(x => x.id === this.state.selId)) this.select(a[0]?.id ?? null); }
+  select(id) {
+    const a = this.state.anime.find(x => x.id === id);
+    this.setState({ selId: id, draft: a ? { alias: a.alias, display: a.display, offset: a.offset, trusted: a.trusted, g0: a.prefs[0]?.group || '', r0: String(a.prefs[0]?.res || 480), g1: a.prefs[1]?.group || '—', r1: String(a.prefs[1]?.res || 480) } : null });
+  }
+  setGroup(gk, rk) {  // picking a group snaps the resolution to one the probe found for it (closest to the current one)
+    return e => {
+      const g = e.target.value, have = this.state.anime.find(a => a.id === this.state.selId)?.probe?.[g];
+      this.setState(s => {
+        const r = +s.draft[rk], fix = have?.length && !have.includes(r);
+        return { draft: { ...s.draft, [gk]: g, ...(fix ? { [rk]: String(have.reduce((b, x) => Math.abs(x - r) < Math.abs(b - r) ? x : b)) } : {}) } };
+      });
+    };
+  }
+  setD(k) { return e => { const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value; this.setState(s => ({ draft: { ...s.draft, [k]: v } })); }; }
+  patchLocal(id, fn) { this.setState(s => ({ anime: s.anime.map(a => a.id === id ? fn(a) : a) })); }
+
+  async run(liveFn, demoFn, msg) {
+    try { if (this.state.live) { await liveFn(); await this.load(true); } else demoFn && demoFn(); if (msg) this.say(msg); }
+    catch (e) { this.say('Failed: ' + e.message); }
+  }
+
+  go(page) { history.replaceState(null, '', '#' + page); this.setState({ page }); }
+  shiftSeason(dir) {
+    let i = SEASONS.indexOf(this.state.season) + dir, y = this.state.year;
+    if (i < 0) { i = 3; y--; } if (i > 3) { i = 0; y++; }
+    this.setState({ season: SEASONS[i], year: y }, async () => {
+      if (!this.state.live) return;
+      try { this.setState({ season_list: await this.api('GET', `/api/season?season=${SEASONS[i]}&year=${y}`) }); } catch (e) { this.say('Season fetch failed: ' + e.message); }
+    });
+  }
+  track(u) {
+    this.run(() => this.api('POST', `/api/anime/${u.id}`), () => this.setState(s => ({
+      anime: [...s.anime, { ...u, desc: '', total: null, aired: 0, next_ep: 1, next_at: null, alias: u.romaji, display: sanitize(u.en || u.romaji), offset: 0, trusted: true, prefs: [], probe: null, episodes: [] }],
+      season_list: s.season_list.filter(x => x.id !== u.id) })), `Tracking ${u.en} · AniList status set to Watching`).then(() => this.select(u.id));
+  }
+  async probe(id) {
+    this.setState(s => ({ probing: { ...s.probing, [id]: true } }));
+    await this.run(() => this.api('POST', `/api/anime/${id}/probe`), () => this.patchLocal(id, a => ({ ...a, probe: a.probe || { SubsPlease: [480, 720, 1080], 'Erai-raws': [480, 720, 1080] } })));
+    this.setState(s => ({ probing: { ...s.probing, [id]: false } }));
+  }
+  async probeAll() { for (const a of this.state.anime) await this.probe(a.id); this.say('Probe finished for ' + this.state.anime.length + ' shows'); }
+  saveDraft() {
+    const d = this.state.draft, id = this.state.selId;
+    const prefs = d.g0 ? [{ group: d.g0, res: +d.r0 }] : []; if (d.g0 && d.g1 && d.g1 !== '—') prefs.push({ group: d.g1, res: +d.r1 });
+    const body = { alias: d.alias.trim(), display: sanitize(d.display), offset: parseInt(d.offset, 10) || 0, trusted: !!d.trusted, prefs };
+    this.run(() => this.api('PATCH', `/api/anime/${id}`, body), () => this.patchLocal(id, a => ({ ...a, ...body })), 'Saved').then(() => this.select(id));
+  }
+  openRemove(a) { this.setState({ dialog: { id: a.id, status: 'COMPLETED', score: '', busy: false, error: '' } }); }
+  async confirmRemove() {
+    const dl = this.state.dialog, a = this.state.anime.find(x => x.id === dl.id);
+    this.setState({ dialog: { ...dl, busy: true, error: '' } });
+    try {
+      if (this.state.live) { await this.api('DELETE', `/api/anime/${dl.id}`, { status: dl.status, score: dl.score === '' ? null : +dl.score }); await this.load(true); }
+      else this.setState(s => ({ anime: s.anime.filter(x => x.id !== dl.id) }));
+      this.setState({ dialog: null }, () => this.ensureSel()); this.say(`Removed ${a.en} · files moved to Trash`);
+    } catch (e) { this.setState({ dialog: { ...dl, busy: false, error: 'AniList update failed, nothing was deleted: ' + e.message } }); }
+  }
+  play(id, n) { this.run(() => this.api('POST', `/api/play/${id}/${n}`), null, 'Opening in VLC…'); }
+  cancel(id, n) {
+    if (!window.confirm(`Cancel episode ${n}? The torrent is removed, any partial file goes to the Trash, and this release is skipped from now on.`)) return;
+    this.run(() => this.api('POST', `/api/anime/${id}/episodes/${n}/cancel`), () => this.patchLocal(id, a => ({ ...a, episodes: a.episodes.map(e => e.number === n ? { ...e, state: 'searching', progress: 0 } : e) })), `Cancelled episode ${n} · searching for another release…`);
+  }
+  retry(id, n) { this.run(() => this.api('POST', `/api/anime/${id}/episodes/${n}/retry`), () => this.patchLocal(id, a => ({ ...a, episodes: a.episodes.map(e => e.number === n ? { ...e, state: 'searching' } : e) })), `Searching for episode ${n}…`); }
+  runJob(name) {
+    const label = name.replaceAll('_', ' ');
+    this.run(async () => { const r = await this.api('POST', `/api/jobs/${name}/run`); this.watchJob(name, label, r?.at || Date.now()); }, null, 'Started ' + label);
+  }
+  async watchJob(name, label, since) {  // poll until the run we asked for has ended, then say how it went
+    for (let i = 0; i < 300; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      let j; try { j = (await this.api('GET', '/api/jobs')).find(x => x.name === name); } catch (e) { continue; }
+      if (!j || j.running || !(j.finished >= since)) continue;
+      await this.load(true);
+      return this.say(j.error ? `${label} failed: ${j.error}` : `Finished ${label}`);
+    }
+  }
+  openExternal(url) { const w = window.pywebview?.api; if (w?.open_url) w.open_url(url); else window.open(url, '_blank', 'noopener'); }
+  saveSettings() {
+    const { _dirty, ...body } = this.state.sDraft;
+    this.run(() => this.api('PATCH', '/api/settings', body), () => this.setState({ settings: body }), 'Settings saved').then(() => this.setState(s => ({ sDraft: { ...s.settings } })));
+  }
+  reconnect() {
+    const id = this.state.account?.client_id;
+    if (!id) return this.say('No AniList client ID yet — run “python -m anidash setup” once.');
+    window.open(`https://anilist.co/api/v2/oauth/authorize?client_id=${encodeURIComponent(id)}&response_type=token`, '_blank');
+    const t = window.prompt('Approve anidash on AniList, then paste the token it shows:');
+    if (!t || !t.trim()) return;
+    this.run(() => this.api('POST', '/api/account/token', { token: t.trim() }), null, 'AniList connected');
+  }
+  async testQbit() {
+    this.setState({ qbit: 'Testing…' });
+    if (!this.state.live) return this.setState({ qbit: '✓ Connected · v5.2.1 (demo)' });
+    try { const r = await this.api('POST', '/api/settings/test-qbit', { url: this.state.sDraft.qbit_url }); this.setState({ qbit: '✓ Connected · v' + r.version }); }
+    catch (e) { this.setState({ qbit: '✕ ' + e.message }); }
+  }
+
+  renderVals() {
+    const S = this.state, now = S.now, sel = S.anime.find(a => a.id === S.selId), d = S.draft || {};
+    const errors = S.events.filter(e => e.level === 'error' && now - e.ts < DAY).length;
+    const ext = { anilist: 'https://anilist.co/home', qbit: S.settings.qbit_url || 'http://127.0.0.1:8080', nyaa: S.settings.nyaa_base || 'https://nyaa.si' };
+    const nav = [['season', 'Season'], ['library', 'Library'], ['activity', 'Activity'], ['settings', 'Settings']].map(([k, label]) => {
+      const on = S.page === k;
+      return { label, go: () => this.go(k), color: on ? 'var(--color-accent-700)' : 'var(--color-text)', weight: on ? 600 : 400, border: on ? 'var(--color-accent)' : 'transparent', hasBadge: k === 'activity' && errors > 0, badge: errors };
+    });
+    const links = [['anilist', 'AniList ↗'], ['qbit', 'qBittorrent ↗'], ['nyaa', 'Nyaa ↗']].map(([k, label]) => ({ label, go: () => this.openExternal(ext[k]) }));
+    const poll = S.jobs.find(j => j.name === 'poll_releases');
+    const statusText = !S.ready ? 'Connecting…' : S.live ? `Service running${poll?.next ? ' · next check ' + hm(poll.next) : ''}` : 'Demo data · service not reachable';
+
+    const rows = S.anime.map(a => {
+      const p = a.prefs || [], on = a.id === S.selId, probing = S.probing[a.id];
+      const n = a.probe ? Object.keys(a.probe).length : 0;
+      return { en: a.en, romaji: a.romaji, airs: a.airs || '—',
+        release: `${p[0] ? p[0].group + ' ' + p[0].res + 'p' : '—'} → ${p[1] ? p[1].group : '—'}`,
+        probe: probing ? 'Probing…' : a.probe ? (a.offset ? `✓ ${n} · +${a.offset}` : `✓ ${n} groups`) : 'Not probed',
+        probeColor: a.probe ? 'var(--color-text)' : 'var(--color-accent-700)',
+        bg: on ? 'var(--color-neutral-100)' : 'transparent', mark: on ? 'var(--color-accent)' : 'transparent',
+        select: () => this.select(a.id), remove: e => { e.stopPropagation(); this.openRemove(a); } };
+    });
+    const tracked = new Set(S.anime.map(a => a.id));
+    const untracked = S.season_list.filter(u => !tracked.has(u.id) && !u.tracked).map(u => ({ ...u, airs: u.airs || '—', track: () => this.track(u) }));
+
+    const probeGroups = sel?.probe ? Object.keys(sel.probe) : [];
+    const groupOpts = [...new Set([...probeGroups, ...(sel?.prefs || []).map(p => p.group), d.g0, d.g1].filter(g => g && g !== '—'))];
+    const dirty = sel && S.draft && (d.alias !== sel.alias || d.display !== sel.display || String(d.offset) !== String(sel.offset) || !!d.trusted !== !!sel.trusted || d.g0 !== (sel.prefs[0]?.group || '') || d.r0 !== String(sel.prefs[0]?.res || 480) || d.g1 !== (sel.prefs[1]?.group || '—') || d.r1 !== String(sel.prefs[1]?.res || 480));
+    const resIn = (g, r) => !sel?.probe || !sel.probe[g] || sel.probe[g].includes(+r);
+
+    const lib = S.anime.map(a => {
+      const done = a.episodes.filter(e => e.state === 'done').sort((x, y) => y.number - x.number);
+      const latest = done[0];
+      const eps = [...a.episodes].sort((x, y) => y.number - x.number).map(e => {
+        const n = pad(e.number, a.total);
+        if (e.state === 'done') return { n, ok: true, canRetry: false, file: e.file_path.split('/').pop(), color: 'var(--color-text)', size: mb(e.size_bytes), date: md(e.downloaded_at), left: Math.max(0, Math.ceil((e.delete_after - now) / DAY)) + ' d left', play: () => this.play(a.id, e.number) };
+        const inQbit = e.state === 'queued' || e.state === 'downloading', status = qbitStatus(e.qbit_state), pct = Math.floor((e.progress || 0) * 100) + '%';
+        const msg = e.state === 'downloading' ? (status === 'Downloading' ? 'Downloading' : `Downloading (${status})`) : e.state === 'failed' ? 'Failed · no matching release in 7 days' : e.state === 'queued' ? `Queued in qBittorrent (${status})` : 'Searching · no release found yet';
+        return { n, ok: false, canRetry: e.state === 'failed' || e.state === 'searching', file: msg, color: e.state === 'failed' ? 'var(--color-accent-700)' : 'var(--color-neutral-700)', hasBar: inQbit, pct, size: inQbit ? pct : '', date: '', left: '', retry: () => this.retry(a.id, e.number), canCancel: inQbit, cancel: () => this.cancel(a.id, e.number) };
+      });
+      return { en: a.en, sub: `Ep ${a.aired} of ${a.total ?? '?'} aired · ${done.length} downloaded`, hasLatest: !!latest, playLabel: latest ? `Play Ep ${pad(latest.number, a.total)}` : '', play: () => latest && this.play(a.id, latest.number),
+        next: a.next_at ? `Next: Ep ${pad(a.next_ep, a.total)} in ${until(a.next_at - now)}` : 'No upcoming episodes', eps, noEps: eps.length === 0 };
+    });
+    const today = S.anime.flatMap(a => a.episodes.filter(e => e.state === 'done' && now - e.downloaded_at < DAY).map(e => ({ title: a.en, ep: pad(e.number, a.total), ts: e.downloaded_at, at: hm(e.downloaded_at), play: () => this.play(a.id, e.number) }))).sort((x, y) => y.ts - x.ts);
+
+    const lvlColor = { error: 'var(--color-accent-700)', warn: 'var(--color-accent-700)', info: 'var(--color-text)' };
+    const log = S.events.filter(e => S.level === 'all' || e.level === S.level).sort((x, y) => y.ts - x.ts).map(e => ({
+      t: (now - e.ts < DAY ? '' : md(e.ts) + ' ') + hm(e.ts), lvl: e.level.toUpperCase(), c: lvlColor[e.level], msg: e.message,
+      hasAct: e.action === 'retry', act: 'Retry', run: () => this.retry(e.anilist_id, e.episode) }));
+    const levels = [['all', 'All'], ['warn', 'Warn'], ['error', 'Error']].map(([k, label]) => ({ label, pick: () => this.setState({ level: k }), bg: S.level === k ? 'var(--color-text)' : 'transparent', fg: S.level === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+
+    const sf = {}; ['library_path', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'qbit_url', 'seed_ratio', 'seed_hours', 'vlc_args'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
+    const ac = S.account || {}, expDays = ac.token_expires ? Math.ceil((ac.token_expires - now) / DAY) : null;
+
+    let dlg = null;
+    if (S.dialog) {
+      const a = S.anime.find(x => x.id === S.dialog.id), [max, step, fl] = SCORE[ac.score_format] || SCORE.POINT_100;
+      const files = (a?.episodes || []).filter(e => e.state === 'done'), bytes = files.reduce((t, e) => t + (e.size_bytes || 0), 0);
+      dlg = { title: a?.en, max, step, formatLabel: fl, score: S.dialog.score, busy: S.dialog.busy, hasError: !!S.dialog.error, error: S.dialog.error,
+        confirmLabel: S.dialog.busy ? 'Updating AniList…' : 'Update & remove',
+        summary: `Sets AniList to ${STATUSES.find(s => s[0] === S.dialog.status)[1]}, moves ${files.length} file${files.length === 1 ? '' : 's'}${bytes ? ' (' + mb(bytes) + ')' : ''} to Trash and removes this show's settings. If AniList fails, nothing is deleted.`,
+        statuses: STATUSES.map(([k, label]) => ({ label, pick: () => this.setState(s => ({ dialog: { ...s.dialog, status: k } })), bg: S.dialog.status === k ? 'var(--color-text)' : 'transparent', fg: S.dialog.status === k ? 'var(--color-bg)' : 'var(--color-text)' })),
+        setScore: e => { const v = e.target.value; this.setState(s => ({ dialog: { ...s.dialog, score: v === '' ? '' : String(Math.min(max, Math.max(0, +v))) } })); },
+        confirm: () => this.confirmRemove() };
+    }
+
+    return {
+      nav, links, statusText, statusDot: S.live ? 'var(--color-text)' : 'var(--color-accent)',
+      isSeason: S.page === 'season', isLibrary: S.page === 'library', isActivity: S.page === 'activity', isSettings: S.page === 'settings',
+      seasonLabel: `${S.season} ${S.year}`, prevSeason: () => this.shiftSeason(-1), nextSeason: () => this.shiftSeason(1),
+      syncAniList: () => this.runJob('sync_schedule'), probeAll: () => this.probeAll(),
+      removeMode: S.removeMode, toggleRemove: () => this.setState(s => ({ removeMode: !s.removeMode })),
+      removeBtnLabel: S.removeMode ? 'Done removing' : 'Remove mode', removeBtnClass: S.removeMode ? 'btn btn-primary' : 'btn btn-ghost',
+      rows, noTracked: S.ready && rows.length === 0, untracked,
+      hasSel: !!sel, noSel: S.ready && !sel,
+      sel: sel ? { en: sel.en, romaji: sel.romaji, desc: sel.desc || 'No description.', airs: sel.airs || '—', url: `https://anilist.co/anime/${sel.id}`,
+        probe: () => this.probe(sel.id), probeBtn: S.probing[sel.id] ? 'Probing…' : sel.probe ? 'Probe again' : 'Probe Nyaa',
+        probeFound: sel.probe ? 'Probe found: ' + Object.entries(sel.probe).map(([g, r]) => `${g} ${r.join('/')}`).join(' · ') + ((!resIn(d.g0, d.r0) || (d.g1 !== '—' && !resIn(d.g1, d.r1))) ? ' — a chosen resolution was not found for that group.' : '') : 'Not probed yet. Probe to see which groups and resolutions exist.',
+        remove: () => this.openRemove(sel) } : {},
+      d, groupOpts1: [{ v: '', label: groupOpts.length ? 'Choose a group…' : 'Probe Nyaa first' }, ...groupOpts.map(g => ({ v: g, label: g }))], groupOpts2: ['—', ...groupOpts.filter(g => g !== d.g0)],
+      resOpts: [480, 720, 1080].map(r => ({ v: String(r), label: r + 'p' })),
+      setG0: this.setGroup('g0', 'r0'), setR0: this.setD('r0'), setG1: this.setGroup('g1', 'r1'), setR1: this.setD('r1'), setTrusted: this.setD('trusted'),
+      setAlias: this.setD('alias'), setDisplay: this.setD('display'), setOffset: this.setD('offset'),
+      namePreview: sel ? `${S.settings.library_path || '~/Anime'}/${sanitize(d.display)}/${sanitize(d.display)} - ${pad(1, sel.total)}.mkv` : '',
+      notDirty: !dirty, saveDraft: () => this.saveDraft(),
+      lib, today, noToday: S.ready && today.length === 0,
+      jobs: S.jobs.map(j => ({ ...j, run: () => this.runJob(j.name) })),
+      downloads: S.downloads.map(x => ({ ...x, pct: Math.round(x.progress * 100) + '%' })), noDownloads: S.ready && S.downloads.length === 0,
+      levels, log,
+      st: S.sDraft, sf, settingsClean: !S.sDraft._dirty, saveSettings: () => this.saveSettings(), resetSettings: () => this.setState(s => ({ sDraft: { ...s.settings } })),
+      diskText: ac.disk_free ? `${mb(ac.disk_used)} used by anidash · ${mb(ac.disk_free)} free` : '—',
+      qbitText: S.qbit, testQbit: () => this.testQbit(),
+      anilistText: ac.user ? `@${ac.user} · token ${expDays > 14 ? 'expires in ' + expDays + ' d' : expDays > 0 ? 'expires in ' + expDays + ' d — reconnect soon' : 'expired'}` : 'Not connected',
+      reconnect: () => this.reconnect(),
+      hasDialog: !!dlg, dlg: dlg || {}, closeDialog: () => this.setState({ dialog: null }),
+      hasToast: !!S.toast, toast: S.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
