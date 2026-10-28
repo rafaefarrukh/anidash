@@ -1,6 +1,6 @@
 # anidash
 
-anidash follows your AniList **Watching** list. When a new episode airs, it finds the release you prefer on Nyaa, downloads it with its built-in BitTorrent engine (or your qBittorrent, if you prefer), saves it as `<Library>/<Title>/<Title> - 05.mkv`, updates your AniList progress and moves the file to the Trash after 30 days. Watch with VLC, from the dashboard or however you like.
+anidash follows your AniList **Watching** list. When a new episode airs, it finds the release you prefer on Nyaa, downloads it with its built-in BitTorrent engine (or your qBittorrent, if you prefer), saves it as `<Library>/<Title>/<Title> - 05.mkv`, updates your AniList progress and moves the file to the Trash after 30 days. Watch from the dashboard (VLC, mpv, MPC-HC, MPC-BE or any player you choose) or however you like.
 
 It runs on **Linux** (any desktop; headless works too) and **Windows 10/11**. Everything stays on your computer: the dashboard is served on `127.0.0.1` only.
 
@@ -48,6 +48,7 @@ Finishing imports the shows on your AniList Watching list.
 - **Library:** *Today* lists the last 24 hours. **Play** opens the newest episode. Each episode shows how many days are left before it goes to the Trash.
 - **Activity:** downloads in progress, the scheduled jobs (with **Run now**) and the log.
 - **Remove a show:** turn on *Remove mode*, press ✕, then choose an AniList status and score. AniList is updated first, and if that fails nothing is deleted.
+- **Player:** Settings → Player picks what opens episodes: *Auto* (the first of VLC, mpv, MPC-HC, MPC-BE that's installed, else your default player), one of those, your system default, or any program with your own arguments. On Windows, if Auto has to use Windows' own player, anidash suggests installing VLC once, since that player shows anime subtitles badly.
 - **Tray icon:** open the dashboard, check for episodes now, pause automation, quit. Closing the window leaves anidash running in the tray.
 
 ## How it decides
@@ -108,7 +109,7 @@ rm -r ~/.local/share/anime-dl/app ~/.local/share/anime-dl/venv   # the old code;
 
 - Listens on `127.0.0.1` only and checks the `Host` header against DNS rebinding.
 - Every API call that changes something needs a per-start random token (injected into the dashboard page, and in `runtime.json` with mode 600 for the CLI) and a same-origin request.
-- VLC, qBittorrent and the Trash are called with argument lists, never a shell. Downloaded files are never executed; only `.mkv`/`.mp4` are accepted.
+- Players, winget, qBittorrent and the Trash are called with argument lists, never a shell. Downloaded files are never executed; only `.mkv`/`.mp4` are accepted.
 - The qBittorrent Web UI is configured for `127.0.0.1` with localhost authentication **on**.
 
 ## Development

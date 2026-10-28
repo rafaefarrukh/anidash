@@ -290,9 +290,10 @@
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
 <div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Player</div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
-<div class="field"><label>VLC path · empty finds it automatically</label><input class="input" value="{{ st.vlc_path }}" onChange="{{ sf.vlc_path }}"></input></div>
-<div class="field"><label>VLC arguments</label><input class="input" value="{{ st.vlc_args }}" onChange="{{ sf.vlc_args }}"></input></div>
-<div class="field"><label>If VLC is missing</label><div style="font-size:13px;padding:8px 0">Episodes open in your default video player</div></div>
+<div class="field"><label>Open episodes with</label><select class="input" value="{{ st.player }}" onChange="{{ sf.player }}"><sc-for list="{{ playerOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.v }}" disabled="{{ o.off }}">{{ o.label }}</option></sc-for></select><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ playerNote }}</div></div>
+<div class="field"><label>Players found on this computer</label><div style="font-size:13px;line-height:1.7;padding:4px 0"><sc-for list="{{ playerList }}" as="p" hint-placeholder-count="4"><div style="color:{{ p.color }};word-break:break-all">{{ p.text }}</div></sc-for></div></div>
+<sc-if value="{{ isCustomPlayer }}" hint-placeholder-val="{{ false }}"><div class="field"><label>Custom player · program</label><input class="input" value="{{ st.player_path }}" onChange="{{ sf.player_path }}" placeholder="C:\Program Files\Player\player.exe"></input></div>
+<div class="field"><label>Custom player · arguments ({file} marks where the episode goes; otherwise it's last)</label><input class="input" value="{{ st.player_args }}" onChange="{{ sf.player_args }}"></input></div></sc-if>
 
 </div>
 </div>
@@ -390,7 +391,7 @@ function demoData() {
       { ts: now - 7 * HOUR, level: 'info', message: 'Schedule synced · 3 shows, 4 upcoming episodes' },
       { ts: now - 11 * HOUR, level: 'info', message: 'Title Bravo – 04 downloaded · AniList progress → 4' }
     ],
-    settings: { library_path: '~/Videos/Anime', managed_trash_days: 14, retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
+    settings: { library_path: '~/Videos/Anime', managed_trash_days: 14, retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', player: 'auto', player_path: '', player_args: '', anilist_client_id: '', autostart: true },
     account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 7.1e9, disk_free: 412e9, secrets: 'Secret Service', secrets_in_file: false, version: '2.0.0 (demo)', data_dir: '~/.local/share/anidash', log_dir: '~/.local/state/anidash/log' },
     health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false, no_webview: false }
   };
@@ -503,6 +504,7 @@ class Component extends DCLogic {
     history.replaceState(null, '', '#' + page); this.setState({ page });
     if (page === 'setup') this.loadSetup();
     if (page === 'settings' && this.state.live && !this.state.ifaces) this.loadIfaces();
+    if (page === 'settings' && this.state.live) this.loadPlayers();
   }
   shiftSeason(dir) {
     let i = SEASONS.indexOf(this.state.season) + dir, y = this.state.year;
@@ -538,9 +540,23 @@ class Component extends DCLogic {
   }
   async play(id, n) {
     if (!this.state.live) return this.say('Opening in VLC… (demo)');
-    try { const r = await this.api('POST', `/api/play/${id}/${n}`); this.say(r.player === 'vlc' ? 'Opening in VLC…' : 'VLC not found · opening in your default player…'); }
-    catch (e) { this.say('Failed: ' + e.message); }
+    try {
+      const r = await this.api('POST', `/api/play/${id}/${n}`);
+      this.say(r.player === 'default' ? 'Opening in your default player…' : `Opening in ${r.label}…`);
+      if (r.hint) this.setState({ playerHint: true });
+    } catch (e) { this.say('Failed: ' + e.message); }
   }
+  async loadPlayers() {
+    try { this.setState({ players: await this.api('GET', '/api/player') }); } catch (e) { this.setState({ players: null }); }
+  }
+  async installVlc() {
+    try {
+      const r = await this.api('POST', '/api/player/install-vlc');
+      if (r.url) this.openExternal(r.url); else this.say('Installing VLC · a console window shows the progress');
+      this.setState({ playerHint: false });
+    } catch (e) { this.say('Failed: ' + e.message); }
+  }
+  dismissPlayerHint() { this.setState({ playerHint: false }); if (this.state.live) this.api('POST', '/api/player/hint/dismiss').catch(() => {}); }
   cancel(id, n) {
     if (!window.confirm(`Cancel episode ${n}? The torrent is removed, any partial file goes to the Trash, and this release is skipped from now on.`)) return;
     this.run(() => this.api('POST', `/api/anime/${id}/episodes/${n}/cancel`), () => this.patchLocal(id, a => ({ ...a, episodes: a.episodes.map(e => e.number === n ? { ...e, state: 'searching', progress: 0 } : e) })), `Cancelled episode ${n} · searching for another release…`);
@@ -663,11 +679,22 @@ class Component extends DCLogic {
     const LIBKIND = { local: 'Local disk', removable: 'Removable drive', network: 'Network folder', cloud: 'Cloud-synced folder' };
     const L = S.lib, libKind = !L ? '' : `${LIBKIND[L.kind] || L.kind}${L.cloud_provider ? ' · ' + L.cloud_provider : L.fs_type ? ' · ' + L.fs_type : ''}`
       + (L.free_bytes != null ? ` · ${mb(L.free_bytes)} free` : '') + (L.has_os_trash ? '' : ' · deleted episodes go to .anidash-trash in the library') + (L.exists ? '' : ' · will be created');
+    const PL = S.players, found = Object.fromEntries((PL?.players || []).map(p => [p.key, p]));
+    const autoLabel = PL ? (PL.auto === 'default' ? 'your default player' : found[PL.auto].label) : '';
+    const playerOpts = [{ v: 'auto', label: 'Auto (recommended)' + (PL ? ` · ${autoLabel}` : ''), off: false }, { v: 'default', label: 'System default player', off: false },
+      ...['vlc', 'mpv', 'mpc-hc', 'mpc-be'].map(k => ({ v: k, label: ({ vlc: 'VLC', mpv: 'mpv', 'mpc-hc': 'MPC-HC', 'mpc-be': 'MPC-BE' })[k] + (PL && !found[k]?.path ? ' (not found)' : ''), off: !!PL && !found[k]?.path && S.sDraft.player !== k })),
+      { v: 'custom', label: 'Custom…', off: false }];
+    const playerList = !PL ? [{ text: S.live ? 'Looking…' : 'VLC · /usr/bin/vlc (demo)', color: 'var(--color-text)' }]
+      : PL.players.map(p => ({ text: p.path ? `${p.label} · ${p.path}` : `${p.label} · not found`, color: p.path ? 'var(--color-text)' : 'var(--color-neutral-500)' }));
+    const playerNote = S.sDraft.player === 'auto' ? 'Auto uses the first of VLC, mpv, MPC-HC, MPC-BE that is installed, else your default player.'
+      : S.sDraft.player === 'default' ? "Your system's default video player. On Windows its subtitle rendering is poor; VLC or mpv is better." : '';
     let banner = null;
     if (S.live && H.library_problem) banner = { tag: 'Library unavailable', text: H.library_problem };
     else if (S.live && H.v1_conflict) banner = { tag: 'v1 still running', text: 'The old anidash v1 service is still active, so automation is paused to avoid duplicate downloads. Run: systemctl --user disable --now anidash.service anidash-kick.timer — then restart anidash.' };
     else if (S.live && H.paused) banner = { tag: 'Paused', text: 'Automation is paused. Nothing is searched or downloaded until you resume.', act: 'Resume', fn: () => this.togglePause() };
     else if (S.live && H.down) banner = { tag: 'Offline', text: 'anidash is not running. Start it from your app menu.' };
+    else if (S.playerHint) banner = { tag: 'Subtitles', text: "Windows' built-in player often shows anime subtitles (typesetting, signs, karaoke) incorrectly. VLC shows them properly and is free.",
+      act: 'Install VLC', fn: () => this.installVlc(), act2: 'Dismiss', fn2: () => this.dismissPlayerHint() };
     else if (S.live && H.no_webview) banner = { tag: 'Opened in your browser', text: 'The anidash window needs the Microsoft Edge WebView2 Runtime, which isn\'t installed. Everything works here in the browser, but AniList login means pasting a token. Install WebView2 (free, from Microsoft), then reopen anidash to get the window and one-click AniList login.',
       act: 'Install WebView2', fn: () => this.openExternal('https://developer.microsoft.com/microsoft-edge/webview2/consumer/'), act2: 'Dismiss', fn2: () => this.dismissWebview() };
 
@@ -714,7 +741,7 @@ class Component extends DCLogic {
     const levels = [['all', 'All'], ['warn', 'Warn'], ['error', 'Error']].map(([k, label]) => ({ label, pick: () => this.setState({ level: k }), bg: S.level === k ? 'var(--color-text)' : 'transparent', fg: S.level === k ? 'var(--color-bg)' : 'var(--color-text)' }));
 
     const sf = {}, sfb = {};
-    ['library_path', 'managed_trash_days', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'vlc_path', 'vlc_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); if (k === 'library_path') this.checkLib(v); });
+    ['library_path', 'managed_trash_days', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'player', 'player_path', 'player_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); if (k === 'library_path') this.checkLib(v); });
     ['backlog', 'autostart'].forEach(k => sfb[k] = e => { const v = e.target.checked; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
     const ac = S.account || {}, expDays = ac.token_expires ? Math.ceil((ac.token_expires - now) / DAY) : null;
 
@@ -790,6 +817,7 @@ class Component extends DCLogic {
       levels, log,
       st: S.sDraft, sf, sfb, settingsClean: !S.sDraft._dirty, saveSettings: () => this.saveSettings(), resetSettings: () => this.setState(s => ({ sDraft: { ...s.settings } })),
       diskText: ac.disk_free ? `${mb(ac.disk_used)} used by anidash · ${mb(ac.disk_free)} free` : '—',
+      playerOpts, playerList, playerNote, isCustomPlayer: S.sDraft.player === 'custom',
       draftQbit: S.sDraft.engine === 'qbittorrent', libKind, libWarn: S.lib?.warnings || [], libNeedsAck: !!S.lib?.needs_ack, libAck: !!S.libAck,
       setLibAck: e => this.setState({ libAck: e.target.checked, sDraft: { ...S.sDraft, _dirty: true } }), qbitText: S.qbit, testQbit: () => this.testQbit(), qbitPw: S.qbitPw, setQbitPw: e => this.setState({ qbitPw: e.target.value }),
       ifaceOpts, ifaceSel: S.ifaceSel, setIface: e => this.setState({ ifaceSel: e.target.value }), applyIface: () => this.applyIface(), ifaceText,

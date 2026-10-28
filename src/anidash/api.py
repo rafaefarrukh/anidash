@@ -324,9 +324,35 @@ def play(mid: int, n: int):
         raise HTTPException(404, "file missing")
     try:
         used = player.play(path)
+    except FileNotFoundError as e:  # the chosen player is gone: say so instead of a bare 500
+        raise HTTPException(409, str(e))
     except OSError as e:
         raise HTTPException(500, str(e))
-    return {"ok": True, "player": used}
+    return {"ok": True, "player": used, "label": player.LABELS.get(used, used), "hint": player.wants_hint(used)}
+
+
+@app.get("/api/player")
+def players():
+    """Settings → Player: what is installed (with paths) and what Auto would pick."""
+    found = player.detect()
+    auto = next((k for k in player.AUTO_ORDER if found[k]), "default")
+    return {"choice": db.setting("player"), "auto": auto,
+            "players": [{"key": k, "label": player.LABELS[k], "path": " ".join(found[k]) if found[k] else None,
+                         "command": found[k]} for k in player.AUTO_ORDER]}
+
+
+@app.post("/api/player/hint/dismiss")
+def player_hint_dismiss():
+    db.set_settings({"player_hint_dismissed": True})
+    return {"ok": True}
+
+
+@app.post("/api/player/install-vlc")
+def player_install_vlc():
+    r = player.install_vlc()
+    if r["started"]:
+        db.event("info", "Installing VLC with winget (a console window shows its progress)")
+    return r
 
 
 # -- activity ---------------------------------------------------------------
@@ -382,7 +408,7 @@ def _bool(v) -> bool:
 
 
 EDITABLE = {"library_path": str, "retention_days": int, "fallback_hours": int, "poll_minutes": int, "give_up_days": int,
-            "backlog": _bool, "engine": str, "managed_trash_days": int, "library_ack": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "vlc_path": str, "vlc_args": str,
+            "backlog": _bool, "engine": str, "managed_trash_days": int, "library_ack": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "player": str, "player_path": str, "player_args": str,
             "anilist_client_id": str}
 RANGES = {"managed_trash_days": (0, 365), "retention_days": (1, 365), "fallback_hours": (0, 168), "poll_minutes": (5, 720), "give_up_days": (1, 60)}
 
@@ -413,6 +439,8 @@ def patch_settings(body: dict):
     for k in ("nyaa_base", "qbit_url"):
         if k in clean and not clean[k].startswith(("http://", "https://")):
             raise HTTPException(422, f"{k} must be an http(s) URL")
+    if "player" in clean and clean["player"] not in player.CHOICES:
+        raise HTTPException(422, f"player must be one of {', '.join(player.CHOICES)}")
     if "engine" in clean and clean["engine"] not in engine.ENGINES:
         raise HTTPException(422, f"engine must be one of {', '.join(engine.ENGINES)}")
     if "anilist_client_id" in clean and clean["anilist_client_id"] and not clean["anilist_client_id"].isdigit():
