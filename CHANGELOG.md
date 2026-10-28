@@ -10,6 +10,15 @@ Release plumbing for the Windows app.
 - Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
 - Ruff config in `pyproject.toml` and a lint job in CI.
 
+### Library location & file routing
+
+- Setup and Settings show where the library lives (local disk, removable drive, network share, cloud-synced folder) with free space. A OneDrive/Dropbox/Google Drive/iCloud folder needs an explicit "I understand this will upload every episode"; network and removable folders get a warning; under 10 GB free gets a warning.
+- The default library avoids a cloud-synced Videos folder (`~/Anime` instead).
+- Downloads go to a hidden `.anidash-incoming` folder in the library and are moved into place when finished (one rename, no half-written files in the library). Leftover staging folders are cleaned up at start.
+- Where there is no Recycle Bin/Trash (network shares, cloud folders), deleted episodes go to a hidden `.anidash-trash` folder in the library, emptied after 14 days (Settings, 0 = never).
+- A file that is in use (e.g. open in a player when it's due for deletion) no longer causes errors: the move or deletion waits and retries on every check (database migration 3).
+- If the library's drive is unplugged, its share isn't mounted, or it becomes unwritable, downloads pause with a banner and resume by themselves once it's back. anidash no longer recreates a missing library folder on the system disk.
+
 ### Built-in download engine
 
 - **No qBittorrent needed:** anidash now downloads with its own BitTorrent engine (libtorrent: DHT, peer exchange, local discovery, encryption). Setup step 2 is *Downloads*: *Built-in (recommended)* or *Use my qBittorrent* (the old flow, unchanged). Switch any time in Settings → Downloads.

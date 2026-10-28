@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from anidash import api, scheduler, vault
+from anidash import api, db, scheduler, vault
 
 TOKEN = "t" * 43
 
@@ -72,3 +72,32 @@ def test_token_endpoint_validates_with_anilist(client, monkeypatch):
                                          ((2026, 10, 25), ("FALL", 2026)), ((2026, 12, 20), ("WINTER", 2027))])
 def test_current_season(date, expect):
     assert api.current_season(datetime(*date)) == expect
+
+
+def test_storage_and_cloud_library_needs_consent(client, home, monkeypatch):
+    from anidash import jobs, storage
+    real = storage.classify
+    cloud = home / "OneDrive" / "Anime"
+    monkeypatch.setattr(storage, "classify", lambda p: {**real(p), "kind": "cloud", "cloud_provider": "OneDrive"}
+                        if "OneDrive" in str(p) else real(p))
+    info = client.get("/api/storage", params={"path": str(cloud)}).json()
+    assert info["kind"] == "cloud" and info["needs_ack"] and "synced by OneDrive" in info["warnings"][0]
+    r = client.patch("/api/settings", json={"library_path": str(cloud)}, headers=H)
+    assert r.status_code == 422 and "I understand" in r.json()["detail"] and not cloud.exists()
+    jobs.LIBRARY["problem"] = "stale"
+    r = client.patch("/api/settings", json={"library_path": str(cloud), "library_ack": str(cloud)}, headers=H)
+    assert r.status_code == 200 and cloud.is_dir()
+    assert db.setting("library_fp") == {"kind": "cloud", "fs_type": real(cloud)["fs_type"], "mount": real(cloud)["mount"]}
+    assert jobs.LIBRARY["problem"] is None
+    assert client.get("/api/storage").json()["needs_ack"] is False  # the saved one is acknowledged
+
+
+def test_downloads_lists_files_waiting_to_move(client, home):
+    db.x("INSERT INTO pending_op(kind, src, created) VALUES('move', '/lib/.anidash-incoming/x/ep.mkv', 0)")
+    assert client.get("/api/downloads").json() == [{"name": "ep.mkv", "progress": 1.0, "speed": "waiting: file in use", "eta": "—"}]
+
+
+def test_health_reports_library_problem(client, monkeypatch):
+    from anidash import jobs
+    monkeypatch.setitem(jobs.LIBRARY, "problem", "The library folder /x is not available")
+    assert "not available" in client.get("/api/health").json()["library_problem"]

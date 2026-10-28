@@ -21,6 +21,7 @@ def home(tmp_path, monkeypatch):
     db.close()
     db.init()
     lib = tmp_path / "Anime"
+    lib.mkdir()  # the app creates it in jobs.check_library once it knows the volume is right
     db.set_settings({"library_path": str(lib)})
     yield tmp_path
     db.close()

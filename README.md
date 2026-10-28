@@ -56,7 +56,9 @@ Finishing imports the shows on your AniList Watching list.
 - A release is accepted only if it's a single `.mkv`/`.mp4` of 50 MB–3 GB, from a trusted uploader when *Trusted only* is on, and its episode number (after the offset) matches.
 - If a v2 appears within 3 days, it replaces v1 (v1 goes to the Trash) and the 30-day clock restarts.
 - **Tracking mid-season:** episodes up to your AniList progress are never downloaded. Aired episodes after it are fetched once (turn this off in Settings → *Already-aired episodes*).
-- Nothing is deleted outright: purge and removal use the Trash / Recycle Bin, and only inside the library folder.
+- Nothing is deleted outright: purge and removal use the Trash / Recycle Bin, and only inside the library folder. On a network share or cloud folder (no Recycle Bin there), files go to a hidden `.anidash-trash` folder in the library instead, emptied after 14 days (Settings; 0 = never).
+- Downloads land in a hidden `.anidash-incoming` folder inside the library and are moved into place when complete, so the library never has half-written files. If a file is in use (you're watching it while it's due for deletion), anidash waits and retries; nothing fails.
+- **Where the library lives matters:** Setup and Settings show whether the folder is on a local disk, a removable drive, a network share or a cloud-synced folder (OneDrive, Dropbox, Google Drive, iCloud). A cloud-synced folder needs an explicit OK, since every episode would be uploaded. If the drive is unplugged or the share isn't mounted, downloads pause with a banner and resume by themselves when it's back.
 - No seeding: a finished torrent is stopped at once and removed as soon as its file is in place.
 - File names are Windows-safe on every OS (`Re:Zero` → `ReZero`, `Title: Sub` → `Title - Sub`), so a library on a partition shared between Linux and Windows works from both.
 
@@ -67,7 +69,7 @@ Finishing imports the shows on your AniList Watching list.
 | Database (settings, shows, episodes, log) | `~/.local/share/anidash/` | `%LOCALAPPDATA%\anidash\` |
 | Logs | `~/.local/state/anidash/log/` | `%LOCALAPPDATA%\anidash\Logs\` |
 | Secrets (AniList token; qBittorrent password if you use it) | system keyring (GNOME Keyring / KWallet) | Windows Credential Manager |
-| Library (default) | `~/Videos/Anime` | `Videos\Anime` |
+| Library (default) | `~/Videos/Anime` (`~/Anime` if Videos is cloud-synced) | `Videos\Anime` (`%USERPROFILE%\Anime` if Videos is in OneDrive) |
 
 With no keyring at all (headless servers), secrets go to a private file in the config folder, and Settings says so.
 

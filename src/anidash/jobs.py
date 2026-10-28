@@ -2,13 +2,14 @@
 import contextlib
 import functools
 import logging
+import os
 import shutil
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 
-from . import anilist, db, engine, files, nyaa, shows
+from . import anilist, db, engine, files, nyaa, shows, storage
 from .parser import parse
 
 log = logging.getLogger("anidash.jobs")
@@ -129,11 +130,105 @@ def _candidates(a, number: int, prefs, min_version: int = 1):
 
 
 def _disk_ok(size: int) -> bool:
-    return shutil.disk_usage(files.library_root()).free > size * 1.2 + 1e9
+    return shutil.disk_usage(storage.existing(files.library_root())).free > size * 1.2 + 1e9
+
+
+# -- library health ------------------------------------------------------------
+LIBRARY: dict = {"problem": None, "cleaned": False}
+
+
+def check_library() -> str | None:
+    """Is the library where it was chosen? An unplugged drive or unmounted share pauses downloads
+    (instead of creating an empty Anime folder on the system disk); they resume by themselves once it's back."""
+    root = files.library_root()
+    info = storage.classify(root)
+    fp, now_fp = db.setting("library_fp"), storage.fingerprint(info)
+    had_files = db.one("SELECT 1 FROM episode WHERE file_path IS NOT NULL")
+    problem = None
+    if not info["exists"] and (fp and fp != now_fp or not fp and had_files):
+        problem = f"The library folder {root} is not available (drive unplugged or network share not mounted). Downloads are paused until it is back."
+    elif fp and fp != now_fp:
+        problem = (f"The library folder {root} is now on different storage ({fp['kind']} {fp['fs_type']} → {info['kind']} {info['fs_type']}). "
+                   "Downloads are paused; if this is intended, save the folder again in Settings.")
+    elif not info["writable"]:
+        problem = f"anidash cannot write to the library folder {root}. Fix its permissions; downloads resume by themselves."
+    else:
+        if not fp:
+            db.set_settings({"library_fp": now_fp})
+        root.mkdir(parents=True, exist_ok=True)
+    if problem != LIBRARY["problem"]:
+        db.event("error" if problem else "info", problem or "Library folder is available again; downloads resume")
+        LIBRARY["problem"] = problem
+    if not problem and not LIBRARY["cleaned"]:
+        LIBRARY["cleaned"] = True
+        _clean_incoming()
+    return problem
+
+
+def _clean_incoming() -> None:
+    """Once per start: staging folders no torrent or waiting move uses any more go to the trash."""
+    base = files.library_root() / files.INCOMING
+    live = {r["infohash"].lower() for r in db.q("""SELECT infohash FROM episode WHERE infohash IS NOT NULL
+                                                AND (state IN ('queued','downloading') OR replacing=1)""")}
+    waiting = [r["src"] for r in db.q("SELECT src FROM pending_op")]
+    for d in base.iterdir() if base.is_dir() else []:
+        if d.name.lower() not in live and not any(w == str(d) or w.startswith(str(d) + os.sep) for w in waiting):
+            file_op("trash", d)
+
+
+# -- file operations that can wait for a file in use ---------------------------
+def _run_op(kind: str, src: str, dst: str | None) -> None:
+    if kind == "move":
+        files.move(Path(src), Path(dst))
+    else:
+        files.trash(Path(src))
+
+
+def file_op(kind: str, src, dst=None, mid=None, n=None, attempts: int = 1) -> bool:
+    """Move or trash now; if the file is in use (a player has it open on Windows), queue it in pending_op
+    and retry on every poll, in order. Never fails the episode. Returns True if done now."""
+    src, dst = str(src), (str(dst) if dst else None)
+    keys = [k for k in (src, dst) if k]
+    marks = ",".join("?" * len(keys))
+    waiting = db.one(f"SELECT 1 FROM pending_op WHERE src IN ({marks}) OR dst IN ({marks})", *keys, *keys)
+    err = "waiting for an earlier operation on this file"
+    for i in range(0 if waiting else attempts):  # an earlier op on the same file goes first
+        try:
+            _run_op(kind, src, dst)
+            return True
+        except files.Locked as e:
+            err = str(e)
+            if i + 1 < attempts:
+                time.sleep(0.25)
+    db.x("INSERT INTO pending_op(kind, src, dst, anilist_id, number, created, last_error) VALUES(?,?,?,?,?,?,?)",
+         kind, src, dst, mid, n, time.time(), err)
+    db.event("warn", f"Waiting: {Path(src).name} is in use; {'moving' if kind == 'move' else 'trashing'} it once it is free", mid, n)
+    return False
+
+
+def run_pending() -> None:
+    blocked: set[str] = set()
+    for op in db.q("SELECT * FROM pending_op ORDER BY id"):
+        keys = {op["src"], op["dst"]} - {None}
+        if keys & blocked:
+            continue
+        try:
+            _run_op(op["kind"], op["src"], op["dst"])
+        except FileNotFoundError:
+            pass  # gone meanwhile (moved or deleted by the user): nothing left to do
+        except Exception as e:  # Locked, or anything else: keep it, retry next poll, keep later ops on it waiting
+            blocked |= keys
+            db.x("UPDATE pending_op SET tries=tries+1, last_error=? WHERE id=?", f"{type(e).__name__}: {e}", op["id"])
+            continue
+        db.x("DELETE FROM pending_op WHERE id=?", op["id"])
+        db.event("info", f"{Path(op['src']).name}: {'moved into the library' if op['kind'] == 'move' else 'moved to the trash'}",
+                 op["anilist_id"], op["number"])
 
 
 @job
 def poll_releases() -> None:
+    if check_library():
+        return
     _run_cache.clear()
     now = time.time()
     fb_h, give_up = float(db.setting("fallback_hours")), float(db.setting("give_up_days"))
@@ -171,8 +266,8 @@ def _poll_one(r, now: float, prefs, fb_h: float, title: str) -> None:
     if not _disk_ok(it.size):
         db.event("error", f"{title} – {n:02d}: disk nearly full, skipped", mid, n)
         return
-    folder = files.show_dir(r["display_title"])
-    engine.get().add(it.infohash, it.title, str(folder), mid)
+    files.show_dir(r["display_title"])  # confinement check for the final name
+    engine.get().add(it.infohash, it.title, str(files.incoming(it.infohash)), mid)
     db.x("""UPDATE episode SET state='queued', chosen_group=?, version=?, infohash=?, torrent_name=?, size_bytes=?, queued_at=?
             WHERE anilist_id=? AND number=?""", p.group, p.version, it.infohash, it.title, it.size, now, mid, n)
     note = f" · fell back to preference {rank}" if rank > 1 else ""
@@ -191,7 +286,7 @@ def _check_revisions() -> None:
         if not cands:
             continue
         _, _, _, it, p = cands[0]
-        engine.get().add(it.infohash, it.title, str(files.show_dir(r["display_title"])), r["anilist_id"])
+        engine.get().add(it.infohash, it.title, str(files.incoming(it.infohash)), r["anilist_id"])
         db.x("""UPDATE episode SET replacing=1, old_hash=infohash, old_path=file_path, infohash=?, torrent_name=?, version=?,
                 replace_started=? WHERE anilist_id=? AND number=?""", it.infohash, it.title, p.version, time.time(),
              r["anilist_id"], r["number"])
@@ -210,6 +305,9 @@ def _sync_progress(mid: int, n: int, title: str) -> None:
 
 @job
 def watch_downloads() -> None:
+    if check_library():
+        return
+    run_pending()
     rows = db.q("""SELECT e.*, a.display_title, a.total_episodes, a.title_en, a.title_romaji FROM episode e JOIN anime a USING(anilist_id)
                    WHERE e.infohash IS NOT NULL AND (e.state IN ('queued','downloading') OR e.replacing=1)""")
     if not rows:
@@ -239,33 +337,27 @@ def watch_downloads() -> None:
             db.x("UPDATE episode SET state='searching', infohash=NULL, replacing=0 WHERE anilist_id=? AND number=?", mid, n)
             db.event("error", f"{title} – {n:02d}: torrent was not a single .mkv/.mp4, discarded", mid, n)
             continue
-        src_name = fl[0].name
-        final_name = files.episode_name(r["display_title"], n, r["total_episodes"], Path(src_name).suffix)
-        folder = files.confine(Path(t.save_path))
+        src = files.confine(Path(t.save_path) / fl[0].name)
+        final = files.show_dir(r["display_title"]) / files.episode_name(r["display_title"], n, r["total_episodes"], src.suffix)
+        try:  # don't seed: drop the torrent first (its files stay), then move the file into the library
+            eng.remove(t.hash)
+        except Exception as e:
+            log.warning("could not remove finished torrent %s: %s", t.hash, e)
         if r["replacing"]:
             if r["old_hash"]:
                 with contextlib.suppress(Exception):
                     eng.remove(r["old_hash"])
             if r["old_path"]:
-                files.trash(Path(r["old_path"]))
-        if src_name != final_name:
-            eng.rename_file(t.hash, src_name, final_name)
-            for _ in range(20):
-                if (folder / final_name).exists():
-                    break
-                time.sleep(0.25)
-        final = files.confine(folder / final_name)
+                file_op("trash", r["old_path"], mid=mid, n=n)
+        # the engine may hold the file for a moment after removal; queued (not failed) if it stays in use
+        file_op("move", src, final, mid, n, attempts=8)
+        if src.parent.parent.name == files.INCOMING:
+            with contextlib.suppress(OSError):  # the staging folder is empty now (rmdir refuses otherwise)
+                src.parent.rmdir()
         size = final.stat().st_size if final.exists() else fl[0].size
         ret = float(db.setting("retention_days"))
         db.x("""UPDATE episode SET state='done', file_path=?, size_bytes=?, downloaded_at=?, delete_after=?, replacing=0,
                 old_hash=NULL, old_path=NULL, replace_started=NULL WHERE anilist_id=? AND number=?""", str(final), size, now, now + ret * DAY, mid, n)
-        try:  # don't seed: drop the torrent once the file is in place (files stay on disk)
-            if final.exists():
-                eng.remove(t.hash)
-            else:  # rename still pending; removing now could abort it
-                eng.stop(t.hash)
-        except Exception as e:
-            log.warning("could not remove finished torrent %s: %s", t.hash, e)
         if r["replacing"]:
             db.event("info", f"{title} – {n:02d}: replaced with v{r['version']}, deletes in {ret:g} d", mid, n)
         else:
@@ -297,6 +389,11 @@ def retry_sync() -> None:
 
 @job
 def purge() -> None:
+    if check_library():
+        return
+    emptied = files.empty_managed_trash(int(db.setting("managed_trash_days")))
+    if emptied:
+        db.event("info", f"Emptied {emptied} day{'s' if emptied > 1 else ''} of anidash's trash folder ({files.TRASH})")
     rows = db.q("""SELECT e.*, a.title_en, a.title_romaji FROM episode e JOIN anime a USING(anilist_id)
                    WHERE e.state='done' AND e.delete_after < ?""", time.time())
     names = []
@@ -306,7 +403,7 @@ def purge() -> None:
         except Exception as e:
             log.warning("could not remove torrent %s: %s", r["infohash"], e)
         if r["file_path"]:
-            files.trash(Path(r["file_path"]))
+            file_op("trash", r["file_path"], mid=r["anilist_id"], n=r["number"])  # waits if a player has it open
         db.x("UPDATE episode SET state='deleted', file_path=NULL WHERE anilist_id=? AND number=?", r["anilist_id"], r["number"])
         names.append(f"{r['title_en'] or r['title_romaji']} – {r['number']:02d}")
     if names:
@@ -339,7 +436,8 @@ def cancel_episode(mid: int, n: int) -> bool:
     for p in partial:
         for f in (p, p.with_name(p.name + ".!qB")):  # qBit's incomplete-file suffix, if enabled
             try:
-                files.trash(f)
+                if f.exists():
+                    file_op("trash", f, mid=mid, n=n, attempts=8)
             except Exception as e:
                 log.warning("could not trash partial file %s: %s", f, e)
     db.event("warn", f"{r['title_en'] or r['title_romaji']} – {n:02d}: cancelled {r['torrent_name']}, searching for another release", mid, n)

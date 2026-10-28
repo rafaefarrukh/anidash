@@ -234,7 +234,7 @@
 <div style="padding:18px 24px;border-right:2px solid var(--color-divider);display:flex;flex-direction:column;gap:6px"><span style="font:700 15px var(--font-heading)">3 · Library</span><span style="font-size:12px;font-weight:600;color:{{ su.lib.color }}">{{ su.lib.status }}</span></div>
 <div style="padding:18px 24px;display:flex;flex-direction:column;gap:12px;min-width:0">
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;max-width:900px">
-<div class="field"><label>Library folder · episodes go to &lt;folder&gt;/&lt;Title&gt;/&lt;Title&gt; - 01.mkv</label><input class="input" value="{{ st.library_path }}" onChange="{{ sf.library_path }}"></input></div>
+<div class="field"><label>Library folder · episodes go to &lt;folder&gt;/&lt;Title&gt;/&lt;Title&gt; - 01.mkv</label><input class="input" value="{{ st.library_path }}" onChange="{{ sf.library_path }}"></input><div style="font-size:12px;line-height:1.5;color:var(--color-neutral-700);margin-top:4px">{{ libKind }}</div><sc-for list="{{ libWarn }}" as="w" hint-placeholder-count="0"><div style="font-size:12px;line-height:1.5;font-weight:600;color:var(--color-accent-700)">⚠ {{ w }}</div></sc-for><sc-if value="{{ libNeedsAck }}" hint-placeholder-val="{{ false }}"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 0"><input type="checkbox" checked="{{ libAck }}" onChange="{{ setLibAck }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>I understand this will upload every episode</label></sc-if></div>
 </div>
 <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px 0"><input type="checkbox" checked="{{ st.backlog }}" onChange="{{ sfb.backlog }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>Also fetch already-aired episodes past my AniList progress when I track a show</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px 0"><input type="checkbox" checked="{{ st.autostart }}" onChange="{{ sfb.autostart }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>Start anidash in the tray when I log in</label>
 </div>
@@ -246,8 +246,9 @@
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
 <div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Library</div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
-<div class="field"><label>Library folder</label><input class="input" value="{{ st.library_path }}" onChange="{{ sf.library_path }}"></input></div>
+<div class="field"><label>Library folder</label><input class="input" value="{{ st.library_path }}" onChange="{{ sf.library_path }}"></input><div style="font-size:12px;line-height:1.5;color:var(--color-neutral-700);margin-top:4px">{{ libKind }}</div><sc-for list="{{ libWarn }}" as="w" hint-placeholder-count="0"><div style="font-size:12px;line-height:1.5;font-weight:600;color:var(--color-accent-700)">⚠ {{ w }}</div></sc-for><sc-if value="{{ libNeedsAck }}" hint-placeholder-val="{{ false }}"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 0"><input type="checkbox" checked="{{ libAck }}" onChange="{{ setLibAck }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>I understand this will upload every episode</label></sc-if></div>
 <div class="field"><label>Delete episodes after (days)</label><input class="input" type="number" value="{{ st.retention_days }}" onChange="{{ sf.retention_days }}"></input></div>
+<div class="field"><label>Empty anidash's own trash after (days) · used where there is no Recycle Bin/Trash; 0 = never</label><input class="input" type="number" value="{{ st.managed_trash_days }}" onChange="{{ sf.managed_trash_days }}"></input></div>
 <div class="field"><label>Disk usage</label><div style="font-size:14px;padding:8px 0">{{ diskText }}</div></div>
 <div class="field"><label>Already-aired episodes</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px 0"><input type="checkbox" checked="{{ st.backlog }}" onChange="{{ sfb.backlog }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>When I track a show mid-season, fetch the aired episodes past my AniList progress</label></div>
 
@@ -389,7 +390,7 @@ function demoData() {
       { ts: now - 7 * HOUR, level: 'info', message: 'Schedule synced · 3 shows, 4 upcoming episodes' },
       { ts: now - 11 * HOUR, level: 'info', message: 'Title Bravo – 04 downloaded · AniList progress → 4' }
     ],
-    settings: { library_path: '~/Videos/Anime', retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
+    settings: { library_path: '~/Videos/Anime', managed_trash_days: 14, retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
     account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 7.1e9, disk_free: 412e9, secrets: 'Secret Service', secrets_in_file: false, version: '2.0.0 (demo)', data_dir: '~/.local/share/anidash', log_dir: '~/.local/state/anidash/log' },
     health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false, no_webview: false }
   };
@@ -448,7 +449,7 @@ class Component extends DCLogic {
     const first = !this.state.ready || !this.state.live;
     this.setState(s => ({ live: true, ready: true, health, anime, downloads, jobs, events, settings, account,
       sDraft: s.sDraft._dirty ? s.sDraft : { ...settings }, page: first && !health.setup_done ? 'setup' : s.page }), () => { if (!quiet || first) this.ensureSel(); });
-    if (first) { this.loadSeason(); if (!health.setup_done) this.loadSetup(); }
+    if (first) { this.loadSeason(); if (!health.setup_done) this.loadSetup(); this.checkLib(settings.library_path); }
   }
   async loadSeason() {
     if (!this.state.live) return;
@@ -458,6 +459,14 @@ class Component extends DCLogic {
     catch (e) { this.setState({ seasonErr: e.message, season_list: [] }); }
     finally { this.setState({ seasonLoading: false }); }
   }
+  checkLib(path) {  // classification under the folder pickers (debounced while typing)
+    clearTimeout(this.libT);
+    if (!this.state.live) return;
+    this.libT = setTimeout(async () => {
+      try { const lib = await this.api('GET', '/api/storage?path=' + encodeURIComponent(path || '')); this.setState({ lib, libAck: false }); } catch (e) { this.setState({ lib: null }); }
+    }, 400);
+  }
+  libAckPayload() { const S = this.state; return S.lib?.needs_ack && S.libAck ? { library_ack: S.lib.path } : {}; }
   async loadSetup() {
     try {
       const [setup, qrep] = await Promise.all([this.api('GET', '/api/setup'), this.api('GET', '/api/setup/qbit')]);
@@ -486,8 +495,8 @@ class Component extends DCLogic {
   patchLocal(id, fn) { this.setState(s => ({ anime: s.anime.map(a => a.id === id ? fn(a) : a) })); }
 
   async run(liveFn, demoFn, msg) {
-    try { if (this.state.live) { await liveFn(); await this.load(true); } else demoFn && demoFn(); if (msg) this.say(msg); }
-    catch (e) { this.say('Failed: ' + e.message); }
+    try { if (this.state.live) { await liveFn(); await this.load(true); } else demoFn && demoFn(); if (msg) this.say(msg); return true; }
+    catch (e) { this.say('Failed: ' + e.message); return false; }
   }
 
   go(page) {
@@ -555,10 +564,10 @@ class Component extends DCLogic {
   // -- settings -------------------------------------------------------------
   draftPayload() { const { _dirty, ...body } = this.state.sDraft; return body; }
   saveSettings() {
-    const body = this.draftPayload();
+    const body = { ...this.draftPayload(), ...this.libAckPayload() };
     const engineChanged = body.engine !== this.state.settings.engine;
     this.run(() => this.api('PATCH', '/api/settings', body), () => this.setState({ settings: body }), 'Settings saved')
-      .then(() => { this.setState(s => ({ sDraft: { ...s.settings } })); if (engineChanged && this.state.live) { this.setState({ ifaces: null }); this.loadIfaces(); } });
+      .then(ok => { if (!ok) return; this.setState(s => ({ sDraft: { ...s.settings } })); this.checkLib(this.state.settings.library_path); if (engineChanged && this.state.live) { this.setState({ ifaces: null }); this.loadIfaces(); } });
   }
   authorizeUrl() {
     const id = this.state.setup?.anilist?.client_id || this.state.account?.client_id;
@@ -620,7 +629,7 @@ class Component extends DCLogic {
   async finishSetup() {
     const d = this.draftPayload();
     try {
-      await this.api('PATCH', '/api/settings', { library_path: d.library_path, backlog: !!d.backlog, autostart: !!d.autostart });
+      await this.api('PATCH', '/api/settings', { library_path: d.library_path, backlog: !!d.backlog, autostart: !!d.autostart, ...this.libAckPayload() });
       await this.api('POST', '/api/setup/finish');
       this.setState({ page: 'season' }); history.replaceState(null, '', '#season');
       await this.load(true); this.say('All set · importing your AniList Watching list…');
@@ -651,8 +660,12 @@ class Component extends DCLogic {
     const links = [['anilist', 'AniList ↗'], ...(usesQbit ? [['qbit', 'qBittorrent ↗']] : []), ['nyaa', 'Nyaa ↗']].map(([k, label]) => ({ label, go: () => this.openExternal(ext[k]) }));
     const poll = S.jobs.find(j => j.name === 'poll_releases');
     const statusText = !S.ready ? 'Connecting…' : H.down ? 'Service not reachable' : !S.live ? 'Demo data · service not reachable' : H.paused ? 'Paused' : `Running${poll?.next ? ' · next check ' + hm(poll.next) : ''}`;
+    const LIBKIND = { local: 'Local disk', removable: 'Removable drive', network: 'Network folder', cloud: 'Cloud-synced folder' };
+    const L = S.lib, libKind = !L ? '' : `${LIBKIND[L.kind] || L.kind}${L.cloud_provider ? ' · ' + L.cloud_provider : L.fs_type ? ' · ' + L.fs_type : ''}`
+      + (L.free_bytes != null ? ` · ${mb(L.free_bytes)} free` : '') + (L.has_os_trash ? '' : ' · deleted episodes go to .anidash-trash in the library') + (L.exists ? '' : ' · will be created');
     let banner = null;
-    if (S.live && H.v1_conflict) banner = { tag: 'v1 still running', text: 'The old anidash v1 service is still active, so automation is paused to avoid duplicate downloads. Run: systemctl --user disable --now anidash.service anidash-kick.timer — then restart anidash.' };
+    if (S.live && H.library_problem) banner = { tag: 'Library unavailable', text: H.library_problem };
+    else if (S.live && H.v1_conflict) banner = { tag: 'v1 still running', text: 'The old anidash v1 service is still active, so automation is paused to avoid duplicate downloads. Run: systemctl --user disable --now anidash.service anidash-kick.timer — then restart anidash.' };
     else if (S.live && H.paused) banner = { tag: 'Paused', text: 'Automation is paused. Nothing is searched or downloaded until you resume.', act: 'Resume', fn: () => this.togglePause() };
     else if (S.live && H.down) banner = { tag: 'Offline', text: 'anidash is not running. Start it from your app menu.' };
     else if (S.live && H.no_webview) banner = { tag: 'Opened in your browser', text: 'The anidash window needs the Microsoft Edge WebView2 Runtime, which isn\'t installed. Everything works here in the browser, but AniList login means pasting a token. Install WebView2 (free, from Microsoft), then reopen anidash to get the window and one-click AniList login.',
@@ -701,12 +714,13 @@ class Component extends DCLogic {
     const levels = [['all', 'All'], ['warn', 'Warn'], ['error', 'Error']].map(([k, label]) => ({ label, pick: () => this.setState({ level: k }), bg: S.level === k ? 'var(--color-text)' : 'transparent', fg: S.level === k ? 'var(--color-bg)' : 'var(--color-text)' }));
 
     const sf = {}, sfb = {};
-    ['library_path', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'vlc_path', 'vlc_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
+    ['library_path', 'managed_trash_days', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'vlc_path', 'vlc_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); if (k === 'library_path') this.checkLib(v); });
     ['backlog', 'autostart'].forEach(k => sfb[k] = e => { const v = e.target.checked; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
     const ac = S.account || {}, expDays = ac.token_expires ? Math.ceil((ac.token_expires - now) / DAY) : null;
 
     // -- setup wizard -------------------------------------------------------
     const su = S.setup, q = S.qrep, ok = { color: 'var(--color-text)' }, todo = { color: 'var(--color-accent-700)' };
+    const libBlocked = !!S.lib?.needs_ack && !S.libAck;
     const dl = su?.downloads || {}, isBuiltin = dl.engine !== 'qbittorrent', dlOk = !!dl.ok;
     const alOk = !!su?.anilist?.ok, qbOk = !!su?.qbit?.ok, isRunning = !isBuiltin && !!q?.running?.length && !qbOk;  // running is fine once connected
     const suv = su ? {
@@ -716,7 +730,7 @@ class Component extends DCLogic {
       biBtn: isBuiltin ? 'btn btn-primary' : 'btn btn-ghost', qbBtn: isBuiltin ? 'btn btn-ghost' : 'btn btn-primary',
       useBuiltin: () => this.setEngine('builtin'), useQbit: () => this.setEngine('qbittorrent'),
       biText: dlOk ? `✓ Built-in engine running (libtorrent ${dl.version})` : dl.error ? '✕ ' + dl.error : 'Starting the built-in engine…',
-      lib: { ...(su.library.writable ? ok : todo), status: su.library.writable ? '✓ Folder is writable' : 'Folder is not writable' },
+      lib: { ...(su.library.writable && !libBlocked ? ok : todo), status: !su.library.writable ? 'Folder is not writable' : libBlocked ? 'Needs your OK' : '✓ Folder is writable' },
       needCid: !su.anilist.client_id || S.ownCid, cid: S.cid,
       cidIntro: su.anilist.client_id ? 'Optional: use your own AniList client instead of the built-in one.' : 'This build has no built-in AniList client.',
       canOwnCid: !!su.anilist.client_id, ownCidLabel: S.ownCid ? 'Hide' : 'Use my own client', toggleOwnCid: () => this.setState(s => ({ ownCid: !s.ownCid })), setCid: e => this.setState({ cid: e.target.value }), saveCid: () => this.saveCid(),
@@ -731,7 +745,7 @@ class Component extends DCLogic {
       isRunning, systemd: q?.systemd ? ` It is a system service: stop it with “${q.systemd.replace('restart', 'stop')}”, configure, then start it again.` : '',
       qbText: S.qbMsg || (qbOk ? `✓ qBittorrent ${su.qbit.version} answers at ${S.settings.qbit_url}` : su.qbit.error && !/not readable yet/.test(su.qbit.error) ? '✕ ' + su.qbit.error : ''),
       recheck: () => this.loadSetup(), manual: S.manualQbit, manualLabel: S.manualQbit ? 'Hide manual login' : 'I already have a Web UI login', toggleManual: () => this.setState(s => ({ manualQbit: !s.manualQbit })),
-      qbOk, cantFinish: !(alOk && dlOk), finishText: alOk && dlOk ? 'Your AniList Watching list is imported when you finish.' : isBuiltin ? 'Connect AniList to finish.' : 'Connect AniList and qBittorrent to finish.'
+      qbOk, cantFinish: !(alOk && dlOk) || libBlocked, finishText: alOk && dlOk ? 'Your AniList Watching list is imported when you finish.' : isBuiltin ? 'Connect AniList to finish.' : 'Connect AniList and qBittorrent to finish.'
     } : { al: todo, qb: todo, lib: todo, installs: [] };
     const ifs = S.ifaces;
     const ifaceOpts = [{ v: '', label: 'Any interface (no binding)' }, ...((ifs?.list) || []).filter(i => i.value).map(i => ({ v: i.value, label: i.name || i.value }))];
@@ -776,7 +790,8 @@ class Component extends DCLogic {
       levels, log,
       st: S.sDraft, sf, sfb, settingsClean: !S.sDraft._dirty, saveSettings: () => this.saveSettings(), resetSettings: () => this.setState(s => ({ sDraft: { ...s.settings } })),
       diskText: ac.disk_free ? `${mb(ac.disk_used)} used by anidash · ${mb(ac.disk_free)} free` : '—',
-      draftQbit: S.sDraft.engine === 'qbittorrent', qbitText: S.qbit, testQbit: () => this.testQbit(), qbitPw: S.qbitPw, setQbitPw: e => this.setState({ qbitPw: e.target.value }),
+      draftQbit: S.sDraft.engine === 'qbittorrent', libKind, libWarn: S.lib?.warnings || [], libNeedsAck: !!S.lib?.needs_ack, libAck: !!S.libAck,
+      setLibAck: e => this.setState({ libAck: e.target.checked, sDraft: { ...S.sDraft, _dirty: true } }), qbitText: S.qbit, testQbit: () => this.testQbit(), qbitPw: S.qbitPw, setQbitPw: e => this.setState({ qbitPw: e.target.value }),
       ifaceOpts, ifaceSel: S.ifaceSel, setIface: e => this.setState({ ifaceSel: e.target.value }), applyIface: () => this.applyIface(), ifaceText,
       anilistText: ac.user ? `@${ac.user} · token ${expDays > 14 ? 'expires in ' + expDays + ' d' : expDays > 0 ? 'expires in ' + expDays + ' d — reconnect soon' : 'expired'}` : 'Not connected',
       reconnect: () => this.reconnect(), reconnectLabel: ac.user ? 'Reconnect' : 'Connect',
