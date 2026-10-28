@@ -23,14 +23,21 @@ function Install([string] $name) {
   if ($rc -ne 0) { Get-Content $log; throw "setup exited $rc" }
   if (-not (Test-Path $exe)) { throw "anidash.exe not installed" }
 }
+function Procs { Get-CimInstance Win32_Process -Filter "Name='anidash.exe'" | Format-Table ProcessId, ParentProcessId, CommandLine -AutoSize | Out-String -Width 400 }
 function Uninstall([string[]] $extra) {
+  "   anidash processes before uninstall:"; Procs
   $log = Join-Path $env:RUNNER_TEMP "uninstall.log"
   $rc = Run (Join-Path $app "unins000.exe") (@("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=`"$log`"") + $extra)
   if ($rc -ne 0) { throw "uninstaller exited $rc" }
   # the uninstaller re-launches itself from %TEMP% and returns at once: wait for the real one
   for ($i = 0; $i -lt 120 -and ((Test-Path $app) -or (Test-Path $uninstKey)); $i++) { Start-Sleep -Milliseconds 500 }
   if (Test-Path $log) { Get-Content $log | Select-String "forget" | ForEach-Object { "  log: $_" } }
-  if (Test-Path $app) { Get-ChildItem -Recurse $app | Select-Object -First 20 | Out-String; throw "app folder still there" }
+  if (Test-Path $app) {
+    "   still running:"; Procs
+    if (Test-Path $log) { Get-Content $log }
+    Get-Content (Join-Path $data "Logs\anidash.log") -Tail 40 -ErrorAction SilentlyContinue
+    throw "app folder still there"
+  }
   if (Test-Path $uninstKey) { throw "uninstall entry still registered" }
   if ((Get-ItemProperty $runKey -ErrorAction SilentlyContinue).anidash) { throw "autostart value left behind" }
 }
