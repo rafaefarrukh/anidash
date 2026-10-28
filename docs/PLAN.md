@@ -137,14 +137,24 @@ Notes from the Phase 5 session (changes from the plan):
 
 
 ## Phase 6 — updates, docs, release prep
-1. **Update check:** monthly (setting: monthly / off; stores `update_checked_at`), plus *Check now* in Settings. `GET https://api.github.com/repos/rafaefarrukh/anidash/releases/latest`, compare versions (ignore pre-releases unless the running version is one). Banner: version, release notes link.
+- [x] 1. **Update check:** monthly (setting: monthly / off; stores `update_checked_at`), plus *Check now* in Settings. `GET https://api.github.com/repos/rafaefarrukh/anidash/releases/latest`, compare versions (ignore pre-releases unless the running version is one). Banner: version, release notes link.
    - Windows: *Update* downloads the `setup.exe` asset to a temp folder, verifies it against `SHA256SUMS.txt`, launches it with `/SILENT`, and quits anidash. Linux: show the right command (`paru -Syu anidash` / `pipx upgrade anidash`).
-2. `docs/code-signing-policy.md` (what SignPath requires: who builds, who approves, privacy note) and a README link to it.
-3. `packaging/winget/` manifest templates (version, installer URL, SHA256, `InstallerType: inno`, `Scope: user`) and a small script that fills them from a release.
-4. README: rewrite *Install* and *First run* for the new flow (no qBittorrent, no client ID); add a Windows FAQ (SmartScreen "More info → Run anyway" until signing lands, WebView2, firewall prompt, where files go). CHANGELOG for 2.0.0. `Outline.md` §8–10 updated.
-5. Bump to `2.0.0`. Do **not** tag; Rafae tags `v2.0.0` after M5.
+- [x] 2. `docs/code-signing-policy.md` (what SignPath requires: who builds, who approves, privacy note) and a README link to it.
+- [x] 3. `packaging/winget/` manifest templates (version, installer URL, SHA256, `InstallerType: inno`, `Scope: user`) and a small script that fills them from a release.
+- [x] 4. README: rewrite *Install* and *First run* for the new flow (no qBittorrent, no client ID); add a Windows FAQ (SmartScreen "More info → Run anyway" until signing lands, WebView2, firewall prompt, where files go). CHANGELOG for 2.0.0. `Outline.md` §8–10 updated.
+- [x] 5. Bump to `2.0.0`. Do **not** tag; Rafae tags `v2.0.0` after M5.
 
 Manual Windows checks: update flow from rc to 2.0.0 (publish a test pre-release on a fork or use a draft release).
+
+Notes from the Phase 6 session (changes from the plan):
+- The check reads `/releases?per_page=20` instead of `/releases/latest`: `latest` never returns pre-releases, but someone running `2.0.0rc1` should be offered `2.0.0rc2`/`2.0.0`. Drafts are skipped; pre-releases are offered only to pre-release users. Versions compare as `a < b < rc < final`.
+- Monthly = a daily `check_updates` job (listed in Activity, runs even while automation is paused) that asks GitHub only if the last check is over 30 days old; `update_check = off` stops it, *Check now* (`POST /api/update/check`) always asks. The banner can be dismissed per version (*Not now*); *Check now* shows it again.
+- The updater only accepts `https://github.com/rafaefarrukh/anidash/releases/download/…` URLs, needs the setup's line in the same release's `SHA256SUMS.txt`, deletes a mismatching download, and runs the installer with `/SILENT /NORESTART` before quitting; Phase 2's installer then stops anidash (`quit --wait`) and restarts it after the silent upgrade. CLAUDE.md's "never execute downloaded files" invariant names this one exception.
+- Linux shows `paru -Syu anidash` when the package lives under `/usr/lib/` (AUR/system), else `pipx upgrade anidash`.
+- `docs/code-signing-policy.md` follows SignPath Foundation's published requirements (signpath.org/terms): the attribution line, team roles with members, MFA, and a privacy policy. anidash does contact networked services, so instead of the "transfers no information" sentence it lists each one and what it sends. The README links it on the home page and the release notes link it (SignPath asks for the term "Code signing policy" on download pages).
+- winget: manifest schema 1.12.0 (the newest in `microsoft/winget-cli/schemas` as of this session), identifier `RafaeFarrukh.anidash`; `fill.py` refuses pre-release versions and versions missing from `SHA256SUMS.txt`, and writes the winget-pkgs folder layout under `packaging/winget/out/` (gitignored).
+- CHANGELOG: the rc1 notes are folded into one 2.0.0 entry. Version is `2.0.0`; nothing is tagged.
+
 
 ---
 

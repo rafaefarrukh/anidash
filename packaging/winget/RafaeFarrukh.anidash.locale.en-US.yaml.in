@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
+PackageIdentifier: RafaeFarrukh.anidash
+PackageVersion: {version}
+PackageLocale: en-US
+Publisher: Muhammad Rafae Farrukh
+PublisherUrl: https://github.com/rafaefarrukh
+PublisherSupportUrl: https://github.com/rafaefarrukh/anidash/issues
+PrivacyUrl: https://github.com/rafaefarrukh/anidash/blob/main/docs/code-signing-policy.md#privacy-policy
+Author: Muhammad Rafae Farrukh
+PackageName: anidash
+PackageUrl: https://github.com/rafaefarrukh/anidash
+License: MIT
+LicenseUrl: https://github.com/rafaefarrukh/anidash/blob/main/LICENSE
+ShortDescription: Follows your AniList Watching list and downloads new episodes from Nyaa automatically.
+Description: |-
+  anidash follows your AniList Watching list. When a new episode airs, it finds the release you prefer on Nyaa,
+  downloads it with its built-in BitTorrent engine, saves it as <Library>/<Title>/<Title> - 05.mkv, updates your
+  AniList progress and moves the file to the Recycle Bin after 30 days.
+Moniker: anidash
+Tags:
+- anime
+- anilist
+- nyaa
+- torrent
+ReleaseNotesUrl: https://github.com/rafaefarrukh/anidash/releases/tag/v{version}
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0

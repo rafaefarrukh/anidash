@@ -449,8 +449,18 @@ def cancel_episode(mid: int, n: int) -> bool:
     return True
 
 
+@job
+def check_updates() -> None:
+    """Daily tick; updates.check() itself only asks GitHub once a month (or never, if turned off)."""
+    from . import updates
+    before = (db.setting("update_latest") or {}).get("version")
+    info = updates.check()
+    if info and info["version"] != before and updates.available():
+        db.event("info", f"anidash {info['version']} is available ({info['url']})")
+
+
 JOBS = {"sync_schedule": sync_schedule, "poll_releases": poll_releases, "watch_downloads": watch_downloads,
-        "retry_sync": retry_sync, "purge": purge}
+        "retry_sync": retry_sync, "purge": purge, "check_updates": check_updates}
 
 
 def last_run(name: str) -> float:

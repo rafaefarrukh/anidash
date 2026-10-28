@@ -9,7 +9,9 @@ It runs on **Linux** (any desktop; headless works too) and **Windows 10/11**. Ev
 ## Install
 
 ### Windows
-Download `anidash-x.y.z-setup.exe` from [Releases](https://github.com/rafaefarrukh/anidash/releases) and run it. No admin rights are needed, and nothing else is required; VLC is recommended for playback.
+Download `anidash-x.y.z-setup.exe` from [Releases](https://github.com/rafaefarrukh/anidash/releases) and run it. No admin rights are needed and nothing else has to be installed: downloads use anidash's built-in engine, and the installer adds Microsoft's WebView2 runtime if your PC lacks it. VLC (or mpv) is recommended for playback because of anime subtitles. Until the installer is signed, Windows shows a SmartScreen warning; see the [Windows FAQ](#windows-faq). [Code signing policy](docs/code-signing-policy.md).
+
+Prefer winget? Once the package is published: `winget install RafaeFarrukh.anidash`.
 
 ### Arch / EndeavourOS / Manjaro
 ```bash
@@ -49,6 +51,7 @@ Finishing imports the shows on your AniList Watching list.
 - **Activity:** downloads in progress, the scheduled jobs (with **Run now**) and the log.
 - **Remove a show:** turn on *Remove mode*, press ✕, then choose an AniList status and score. AniList is updated first, and if that fails nothing is deleted.
 - **Player:** Settings → Player picks what opens episodes: *Auto* (the first of VLC, mpv, MPC-HC, MPC-BE that's installed, else your default player), one of those, your system default, or any program with your own arguments. On Windows, if Auto has to use Windows' own player, anidash suggests installing VLC once, since that player shows anime subtitles badly.
+- **Updates:** anidash checks GitHub Releases once a month (Settings → *Check for updates*, or *Check now*). On Windows, *Update now* downloads the installer, verifies it against the release checksums, installs it and restarts anidash; on Linux the banner shows the command to run.
 - **Tray icon:** open the dashboard, check for episodes now, pause automation, quit. Closing the window leaves anidash running in the tray.
 
 ## How it decides
@@ -98,6 +101,15 @@ rm ~/.config/systemd/user/anidash{,-kick}.{service,timer} ~/.local/share/applica
 rm -r ~/.local/share/anime-dl/app ~/.local/share/anime-dl/venv   # the old code; your data was copied
 ```
 
+## Windows FAQ
+
+- **"Windows protected your PC" (SmartScreen):** the installer isn't code-signed yet (anidash is applying to the free [SignPath Foundation](https://signpath.org) program; see the [code signing policy](docs/code-signing-policy.md)). Choose *More info → Run anyway*. You can check the download against `SHA256SUMS.txt` on the release page: `Get-FileHash anidash-x.y.z-setup.exe`.
+- **WebView2:** the anidash window uses Microsoft Edge WebView2, which Windows 11 and most Windows 10 PCs already have. If it's missing, the installer installs it (per user, no admin). If that fails (offline), the dashboard opens in your browser and tells you how to get the window back; everything works there, only AniList login asks you to paste a token.
+- **Firewall prompt:** the first time the built-in engine downloads, Windows Firewall may ask whether anidash may communicate on networks. Allow it so other peers can connect to you. If you cancel, downloads still work through the connections anidash makes itself, but usually more slowly.
+- **Where files go:** episodes in your library folder (default `Videos\Anime`, or `%USERPROFILE%\Anime` if Videos is in OneDrive); downloads in progress in a hidden `.anidash-incoming` folder inside it; settings, database and logs in `%LOCALAPPDATA%\anidash`; the program in `%LOCALAPPDATA%\Programs\anidash`; your AniList login in Windows Credential Manager.
+- **Uninstalling:** *Settings → Apps → anidash → Uninstall*. It asks whether to remove your settings and saved logins too; your anime library is never touched.
+- **Subtitles look wrong:** Windows' built-in player doesn't render anime (ASS) subtitles properly. Install VLC (anidash offers to) or mpv, and choose it in Settings → Player, or leave it on *Auto*.
+
 ## Troubleshooting
 
 - **No tray icon on GNOME:** install the *AppIndicator and KStatusNotifierItem Support* extension. anidash still runs without it; open it from the app menu.
@@ -106,6 +118,8 @@ rm -r ~/.local/share/anime-dl/app ~/.local/share/anime-dl/venv   # the old code;
 - **Keyring errors right after login:** your wallet unlocked late. anidash retries on the next job.
 
 ## Security
+
+See also the [code signing policy and privacy policy](docs/code-signing-policy.md): what anidash connects to, and what it sends.
 
 - Listens on `127.0.0.1` only and checks the `Host` header against DNS rebinding.
 - Every API call that changes something needs a per-start random token (injected into the dashboard page, and in `runtime.json` with mode 600 for the CLI) and a same-origin request.

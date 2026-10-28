@@ -9,3 +9,4 @@ __pycache__/
 uploads/
 packaging/windows/version_info.txt
 packaging/windows/MicrosoftEdgeWebview2Setup.exe
+packaging/winget/out/

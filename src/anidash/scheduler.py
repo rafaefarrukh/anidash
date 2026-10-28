@@ -19,6 +19,7 @@ META = {
     "watch_downloads": ("Watch downloads", "Every 1 min"),
     "retry_sync": ("AniList retry", "Every 15 min"),
     "purge": ("Purge", "Daily 04:00"),
+    "check_updates": ("Check for updates", "Monthly (daily tick)"),
 }
 _stop = threading.Event()
 paused = threading.Event()  # tray "Pause automation"
@@ -42,6 +43,7 @@ def start() -> None:
     sched.add_job(_guarded(jobs.watch_downloads), IntervalTrigger(minutes=1), id="watch_downloads")
     sched.add_job(_guarded(jobs.retry_sync), IntervalTrigger(minutes=15), id="retry_sync")
     sched.add_job(_guarded(jobs.purge), CronTrigger(hour=4, jitter=600), id="purge")
+    sched.add_job(jobs.check_updates, CronTrigger(hour=12, jitter=3600), id="check_updates")  # also while paused
     sched.start()
     _stop.clear()
     threading.Thread(target=_watchdog, name="resume-watchdog", daemon=True).start()

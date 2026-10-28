@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +36,7 @@ from . import (
     shows,
     storage,
     ui,
+    updates,
     vault,
 )
 from .parser import parse
@@ -103,7 +105,7 @@ def health():
     return {"app": APP, "version": __version__, "setup_done": bool(db.setting("setup_done")),
             "v1_conflict": STATE["v1_conflict"], "paused": scheduler.paused.is_set(),
             "no_webview": STATE["no_webview"] and not db.setting("webview_notice_dismissed"),
-            "library_problem": jobs.LIBRARY["problem"]}
+            "library_problem": jobs.LIBRARY["problem"], "update": updates.available()}
 
 
 @app.post("/api/ui/show")
@@ -331,6 +333,45 @@ def play(mid: int, n: int):
     return {"ok": True, "player": used, "label": player.LABELS.get(used, used), "hint": player.wants_hint(used)}
 
 
+@app.get("/api/update")
+def update_status():
+    return {"current": __version__, "checked_at": ms(float(db.setting("update_checked_at") or 0)),
+            "latest": db.setting("update_latest"), "available": updates.available(), "how": updates.how_to_update()}
+
+
+@app.post("/api/update/check")
+def update_check_now():
+    try:
+        updates.check(force=True)
+    except (httpx.HTTPError, ValueError) as e:
+        raise HTTPException(502, f"Could not reach GitHub: {e}")
+    db.set_settings({"update_dismissed": ""})  # asked on purpose: show it again
+    return update_status()
+
+
+@app.post("/api/update/dismiss")
+def update_dismiss():
+    info = db.setting("update_latest")
+    db.set_settings({"update_dismissed": info["version"] if info else ""})
+    return {"ok": True}
+
+
+@app.post("/api/update/install")
+def update_install():
+    info = updates.available()
+    if not info:
+        raise HTTPException(409, "No newer version to install")
+    if info["how"]["kind"] != "installer":
+        raise HTTPException(409, f"Update with: {info['how']['command']}")
+    try:
+        setup = updates.install(info)
+    except (httpx.HTTPError, ValueError, OSError) as e:
+        raise HTTPException(502, f"Update failed, nothing was installed: {e}")
+    db.event("info", f"Updating to {info['version']} ({setup.name} verified against SHA256SUMS.txt); anidash restarts by itself")
+    _bg(ui.request_quit)  # the installer waits for us to exit, then starts the new version
+    return {"ok": True}
+
+
 @app.get("/api/player")
 def players():
     """Settings → Player: what is installed (with paths) and what Auto would pick."""
@@ -408,7 +449,7 @@ def _bool(v) -> bool:
 
 
 EDITABLE = {"library_path": str, "retention_days": int, "fallback_hours": int, "poll_minutes": int, "give_up_days": int,
-            "backlog": _bool, "engine": str, "managed_trash_days": int, "library_ack": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "player": str, "player_path": str, "player_args": str,
+            "backlog": _bool, "engine": str, "managed_trash_days": int, "library_ack": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "player": str, "player_path": str, "player_args": str, "update_check": str,
             "anilist_client_id": str}
 RANGES = {"managed_trash_days": (0, 365), "retention_days": (1, 365), "fallback_hours": (0, 168), "poll_minutes": (5, 720), "give_up_days": (1, 60)}
 
@@ -439,6 +480,8 @@ def patch_settings(body: dict):
     for k in ("nyaa_base", "qbit_url"):
         if k in clean and not clean[k].startswith(("http://", "https://")):
             raise HTTPException(422, f"{k} must be an http(s) URL")
+    if "update_check" in clean and clean["update_check"] not in ("monthly", "off"):
+        raise HTTPException(422, "update_check must be monthly or off")
     if "player" in clean and clean["player"] not in player.CHOICES:
         raise HTTPException(422, f"player must be one of {', '.join(player.CHOICES)}")
     if "engine" in clean and clean["engine"] not in engine.ENGINES:

@@ -46,3 +46,30 @@ def test_selftest_required_failure_sets_exit_code(tmp_path, monkeypatch):
     res = json.loads(out.read_text())
     assert e.value.code == 1 and res["ok"] is False
     assert res["checks"]["window"] == {"ok": False, "detail": "ImportError: no clr", "required": True}
+
+
+def _winget_fill():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("winget_fill", Path(__file__).parents[1] / "packaging" / "winget" / "fill.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_winget_manifests_from_release_sums(tmp_path):
+    fill = _winget_fill()
+    h = "ab" * 32
+    sums = f"{'cd' * 32}  anidash-2.0.0.tar.gz\n{h}  anidash-2.0.0-setup.exe\n"
+    dest = fill.fill("2.0.0", sums, "2026-11-02", tmp_path)
+    assert dest == tmp_path / "manifests" / "r" / "RafaeFarrukh" / "anidash" / "2.0.0"
+    files = {p.name: p.read_text() for p in dest.iterdir()}
+    assert set(files) == {"RafaeFarrukh.anidash.yaml", "RafaeFarrukh.anidash.installer.yaml", "RafaeFarrukh.anidash.locale.en-US.yaml"}
+    inst = files["RafaeFarrukh.anidash.installer.yaml"]
+    assert f"InstallerSha256: {h.upper()}" in inst and "InstallerType: inno" in inst and "Scope: user" in inst
+    assert "https://github.com/rafaefarrukh/anidash/releases/download/v2.0.0/anidash-2.0.0-setup.exe" in inst
+    assert "ReleaseDate: 2026-11-02" in inst
+    assert not any("{version}" in t or "{sha256}" in t for t in files.values())
+    with pytest.raises(SystemExit):
+        fill.fill("2.0.0rc1", sums, "2026-11-02", tmp_path)  # winget gets final releases only
+    with pytest.raises(SystemExit):
+        fill.fill("2.0.1", sums, "2026-11-02", tmp_path)  # not in SHA256SUMS.txt
