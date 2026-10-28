@@ -8,7 +8,9 @@ anidash forget --yes      delete saved logins (keyring), the secrets file and th
 anidash install-systemd   headless Linux: write a systemd user unit (no tray)
 anidash --version
 """
+import contextlib
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -59,23 +61,47 @@ def main(argv=None) -> None:
 
 def quit_running(wait: bool = False, timeout: float = 15) -> int:
     """0 = stopped (or asked to), 1 = wasn't running, 2 = still running after `timeout` (--wait only).
+    --wait also waits for (and finally terminates) any other process of this same install, e.g. windows.
     The installer uses --wait so files aren't in use when it replaces or removes them."""
+    import psutil
+
     from . import runtime
     info = runtime.running()
-    if not info:
+    rc = 0
+    if info:
+        runtime.call("POST", "/api/app/quit", info)
+        print("stopping")
+        if wait:  # the process, not the port: it closes its server a few seconds before it exits and unlocks its files
+            try:
+                psutil.Process(info["pid"]).wait(timeout)
+            except psutil.TimeoutExpired:
+                rc = 2
+            except psutil.NoSuchProcess:
+                pass
+    else:
         print("not running")
-        return 1 if wait else 0
-    runtime.call("POST", "/api/app/quit", info)
-    print("stopping")
-    if wait:  # the process, not the port: it closes its server a few seconds before it exits and unlocks its files
-        import psutil
-        try:
-            psutil.Process(info["pid"]).wait(timeout)
-        except psutil.TimeoutExpired:
-            return 2
-        except psutil.NoSuchProcess:
-            pass
-    return 0
+        rc = 1 if wait else 0
+    if wait and rc != 2:  # windows (also orphans of a crashed service) still hold this install's files
+        _, alive = psutil.wait_procs(_same_install(), timeout=5)
+        for p in alive:
+            with contextlib.suppress(psutil.Error):
+                p.terminate()
+        _, alive = psutil.wait_procs(alive, timeout=3)
+        rc = 2 if alive else rc
+    return rc
+
+
+def _same_install() -> list:
+    """Other processes running this very anidash.exe (frozen builds only: unfrozen, it's python)."""
+    import psutil
+    if not getattr(sys, "frozen", False):
+        return []
+    exe, me, out = os.path.normcase(sys.executable), os.getpid(), []
+    for p in psutil.process_iter(["exe"]):
+        with contextlib.suppress(psutil.Error):
+            if p.pid != me and p.info["exe"] and os.path.normcase(p.info["exe"]) == exe:
+                out.append(p)
+    return out
 
 
 def forget() -> int:

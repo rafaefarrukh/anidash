@@ -166,3 +166,27 @@ def test_close_window_waits_for_the_child(monkeypatch):
     monkeypatch.setattr(ui, "_proc", proc)
     ui.close_window()
     assert calls == ["terminate", ("wait", 5)]
+
+
+def test_same_install_only_matches_this_exe(monkeypatch):
+    me = types.SimpleNamespace(pid=cli.os.getpid(), info={"exe": "C:/A/anidash.exe"})
+    win = types.SimpleNamespace(pid=11, info={"exe": "C:/A/anidash.exe"})
+    other = types.SimpleNamespace(pid=12, info={"exe": "C:/B/anidash.exe"})  # another install: never touched
+    denied = types.SimpleNamespace(pid=13, info={"exe": None})  # access denied reads as None
+    monkeypatch.setattr(psutil, "process_iter", lambda attrs: [me, win, other, denied])
+    monkeypatch.setattr(cli.sys, "executable", "C:/A/anidash.exe")
+    assert cli._same_install() == []  # unfrozen: sys.executable is python, so never sweep
+    monkeypatch.setattr(cli.sys, "frozen", True, raising=False)
+    assert cli._same_install() == [win]
+
+
+def test_quit_wait_terminates_leftover_windows(monkeypatch):
+    terminated = []
+    stuck = types.SimpleNamespace(terminate=lambda: terminated.append(True))
+    monkeypatch.setattr(runtime, "running", lambda: None)
+    monkeypatch.setattr(cli, "_same_install", lambda: [stuck])
+    rounds = iter([([], [stuck]), ([stuck], [])])  # ignores the first wait, dies after terminate()
+    monkeypatch.setattr(psutil, "wait_procs", lambda procs, timeout: next(rounds))
+    assert cli.quit_running(wait=True) == 1 and terminated == [True]
+    monkeypatch.setattr(psutil, "wait_procs", lambda procs, timeout: ([], list(procs)))  # unkillable
+    assert cli.quit_running(wait=True) == 2

@@ -164,6 +164,20 @@ begin
       Result := True;
 end;
 
+{ A process that just exited can keep its exe and DLLs locked for a moment, and the uninstaller deletes files
+  right after usUninstall: wait (up to 15 s) until anidash.exe itself can be deleted. }
+procedure WaitUntilDeletable(Exe: String);
+var
+  I: Integer;
+begin
+  for I := 1 to 60 do begin
+    if (not FileExists(Exe)) or DeleteFile(Exe) then
+      Exit;
+    Sleep(250);
+  end;
+  Log('anidash.exe is still in use');
+end;
+
 { "Also remove my settings, database and saved logins" (default: no; /REMOVEDATA answers yes for silent
   uninstalls). Saved logins live in Credential Manager, so `anidash forget --yes` deletes those (and stops
   anidash) before the folder goes. It returns 3 when the library is inside the data folder: then nothing is
@@ -196,6 +210,7 @@ begin
             '; delete that folder yourself if you want them gone.', mbInformation, MB_OK, IDOK);
       end;
     end;
+    WaitUntilDeletable(Exe);
   end;
   if CurUninstallStep = usPostUninstall then begin
     RegDeleteValue(HKCU, RunKey, 'anidash');  { also when Settings, not this installer, turned autostart on }
