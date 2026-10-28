@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from anidash import db, jobs, qbit, qbit_setup, shows, vault
+from anidash import db, engine, jobs, qbit, qbit_setup, shows, vault
 
 NOX = shutil.which("qbittorrent-nox")
 pytestmark = pytest.mark.skipif(not NOX, reason="qbittorrent-nox not installed")
@@ -51,7 +51,8 @@ def qb(home, monkeypatch, tmp_path):
     proc = subprocess.Popen(inst.command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     secrets = {"qbit_password": "integration-pw"}
     monkeypatch.setattr(vault, "get", lambda k: secrets.get(k))
-    db.set_settings({"qbit_url": res["url"], "qbit_username": "anidash"})
+    db.set_settings({"qbit_url": res["url"], "qbit_username": "anidash", "engine": "qbittorrent"})
+    monkeypatch.setattr(engine, "get", engine.QbitEngine)  # the real qBittorrent backend, not the test fake
     qbit.reset()
     for _ in range(60):
         try:

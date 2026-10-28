@@ -203,8 +203,12 @@
 </div>
 </div>
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
-<div style="padding:18px 24px;border-right:2px solid var(--color-divider);display:flex;flex-direction:column;gap:6px"><span style="font:700 15px var(--font-heading)">2 · qBittorrent</span><span style="font-size:12px;font-weight:600;color:{{ su.qb.color }}">{{ su.qb.status }}</span></div>
+<div style="padding:18px 24px;border-right:2px solid var(--color-divider);display:flex;flex-direction:column;gap:6px"><span style="font:700 15px var(--font-heading)">2 · Downloads</span><span style="font-size:12px;font-weight:600;color:{{ su.qb.color }}">{{ su.qb.status }}</span></div>
 <div style="padding:18px 24px;display:flex;flex-direction:column;gap:12px;min-width:0">
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="{{ su.biBtn }}" onClick="{{ su.useBuiltin }}" disabled="{{ su.busy }}" style="white-space:nowrap;flex:none">Built-in (recommended)</button><button class="{{ su.qbBtn }}" onClick="{{ su.useQbit }}" disabled="{{ su.busy }}" style="white-space:nowrap;flex:none">Use my qBittorrent</button></div>
+<sc-if value="{{ su.isBuiltin }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;line-height:1.5;max-width:720px">anidash downloads with its own BitTorrent engine: nothing else to install or set up. A torrent is removed as soon as its episode is in your library, so nothing is seeded.</div>
+<div style="font-size:13px;line-height:1.5">{{ su.biText }}</div></sc-if>
+<sc-if value="{{ su.isQbit }}" hint-placeholder-val="{{ false }}">
 <div style="font-size:13px;line-height:1.5;max-width:720px">Downloads go through qBittorrent's Web UI. anidash can turn it on for you: it sets a private login, listens only on this computer, and keeps a backup of qBittorrent's settings.</div>
 <sc-if value="{{ su.noInstall }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;line-height:1.6">qBittorrent was not found. Install it, then press <b>Check again</b>:<div style="font-family:monospace;background:var(--color-neutral-100);padding:8px 12px;margin-top:6px;border:2px solid var(--color-neutral-200)">{{ su.hint }}</div></div></sc-if>
 <sc-for list="{{ su.installs }}" as="i" hint-placeholder-count="1">
@@ -222,7 +226,8 @@
 <div class="field"><label>Password</label><input class="input" type="password" value="{{ qbitPw }}" onChange="{{ setQbitPw }}" autocomplete="off"></input></div>
 <div class="field"><label>&nbsp;</label><button class="btn btn-secondary" onClick="{{ testQbit }}" style="white-space:nowrap;flex:none">Test &amp; save login</button></div>
 </div></sc-if>
-<sc-if value="{{ su.qbOk }}" hint-placeholder-val="{{ false }}"><div class="field" style="max-width:520px"><label>Optional · bind to your VPN interface (kill switch: no VPN, no traffic)</label><div style="display:flex;gap:8px"><select class="input" value="{{ ifaceSel }}" onChange="{{ setIface }}"><sc-for list="{{ ifaceOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select><button class="btn btn-ghost" onClick="{{ applyIface }}" style="white-space:nowrap;flex:none">Apply</button></div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ ifaceText }}</div></div></sc-if>
+</sc-if>
+<sc-if value="{{ su.showIface }}" hint-placeholder-val="{{ false }}"><div class="field" style="max-width:520px"><label>Optional · bind to your VPN interface (kill switch: no VPN, no traffic)</label><div style="display:flex;gap:8px"><select class="input" value="{{ ifaceSel }}" onChange="{{ setIface }}"><sc-for list="{{ ifaceOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select><button class="btn btn-ghost" onClick="{{ applyIface }}" style="white-space:nowrap;flex:none">Apply</button></div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ ifaceText }}</div></div></sc-if>
 </div>
 </div>
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
@@ -259,12 +264,15 @@
 </div>
 </div>
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
-<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">qBittorrent</div>
+<div style="padding:18px 24px;font:700 15px var(--font-heading);border-right:2px solid var(--color-divider)">Downloads</div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
+<div class="field"><label>Download engine</label><select class="input" value="{{ st.engine }}" onChange="{{ sf.engine }}"><option value="builtin">Built-in (recommended)</option><option value="qbittorrent">My qBittorrent</option></select></div>
+<sc-if value="{{ draftQbit }}" hint-placeholder-val="{{ false }}">
 <div class="field"><label>Web UI address</label><input class="input" value="{{ st.qbit_url }}" onChange="{{ sf.qbit_url }}"></input></div>
 <div class="field"><label>Username</label><input class="input" value="{{ st.qbit_username }}" onChange="{{ sf.qbit_username }}"></input></div>
 <div class="field"><label>Password · leave empty to keep the saved one</label><input class="input" type="password" value="{{ qbitPw }}" onChange="{{ setQbitPw }}" autocomplete="off"></input></div>
 <div class="field"><label>Connection</label><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" onClick="{{ testQbit }}" style="white-space:nowrap;flex:none">Test &amp; save login</button><span style="font-size:13px">{{ qbitText }}</span></div></div>
+</sc-if>
 <div class="field"><label>VPN binding</label><div style="display:flex;align-items:center;gap:8px"><select class="input" value="{{ ifaceSel }}" onChange="{{ setIface }}"><sc-for list="{{ ifaceOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o.v }}">{{ o.label }}</option></sc-for></select><button class="btn btn-ghost" onClick="{{ applyIface }}" style="white-space:nowrap;flex:none">Apply</button></div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ ifaceText }}</div></div>
 
 </div>
@@ -381,7 +389,7 @@ function demoData() {
       { ts: now - 7 * HOUR, level: 'info', message: 'Schedule synced · 3 shows, 4 upcoming episodes' },
       { ts: now - 11 * HOUR, level: 'info', message: 'Title Bravo – 04 downloaded · AniList progress → 4' }
     ],
-    settings: { library_path: '~/Videos/Anime', retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
+    settings: { library_path: '~/Videos/Anime', retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
     account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 7.1e9, disk_free: 412e9, secrets: 'Secret Service', secrets_in_file: false, version: '2.0.0 (demo)', data_dir: '~/.local/share/anidash', log_dir: '~/.local/state/anidash/log' },
     health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false, no_webview: false }
   };
@@ -454,11 +462,11 @@ class Component extends DCLogic {
     try {
       const [setup, qrep] = await Promise.all([this.api('GET', '/api/setup'), this.api('GET', '/api/setup/qbit')]);
       this.setState({ setup, qrep });
-      if (setup.qbit.ok && !this.state.ifaces) this.loadIfaces();
+      if ((setup.downloads.engine === 'builtin' || setup.qbit.ok) && !this.state.ifaces) this.loadIfaces();
     } catch (e) { this.say('Setup check failed: ' + e.message); }
   }
   async loadIfaces() {
-    try { const ifaces = await this.api('GET', '/api/setup/qbit/interfaces'); this.setState({ ifaces, ifaceSel: ifaces.current || '' }); } catch (e) { this.setState({ ifaces: null }); }
+    try { const ifaces = await this.api('GET', '/api/engine/interfaces'); this.setState({ ifaces, ifaceSel: ifaces.current || '' }); } catch (e) { this.setState({ ifaces: null }); }
   }
   ensureSel() { const a = this.state.anime; if (!a.find(x => x.id === this.state.selId)) this.select(a[0]?.id ?? null); }
   select(id) {
@@ -548,7 +556,9 @@ class Component extends DCLogic {
   draftPayload() { const { _dirty, ...body } = this.state.sDraft; return body; }
   saveSettings() {
     const body = this.draftPayload();
-    this.run(() => this.api('PATCH', '/api/settings', body), () => this.setState({ settings: body }), 'Settings saved').then(() => this.setState(s => ({ sDraft: { ...s.settings } })));
+    const engineChanged = body.engine !== this.state.settings.engine;
+    this.run(() => this.api('PATCH', '/api/settings', body), () => this.setState({ settings: body }), 'Settings saved')
+      .then(() => { this.setState(s => ({ sDraft: { ...s.settings } })); if (engineChanged && this.state.live) { this.setState({ ifaces: null }); this.loadIfaces(); } });
   }
   authorizeUrl() {
     const id = this.state.setup?.anilist?.client_id || this.state.account?.client_id;
@@ -597,8 +607,15 @@ class Component extends DCLogic {
   }
   async applyIface() {
     if (!this.state.live) return this.say('Bound (demo)');
-    try { await this.api('POST', '/api/setup/qbit/interface', { value: this.state.ifaceSel }); this.say(this.state.ifaceSel ? 'qBittorrent now only uses ' + this.state.ifaceSel : 'qBittorrent uses any interface'); this.loadIfaces(); }
+    try { await this.api('POST', '/api/engine/interface', { value: this.state.ifaceSel }); this.say(this.state.ifaceSel ? 'Downloads now only use ' + this.state.ifaceSel : 'Downloads use any interface'); this.loadIfaces(); }
     catch (e) { this.say('Failed: ' + e.message); }
+  }
+  async setEngine(engine) {
+    if (!this.state.live) return this.setState(s => ({ setup: { ...s.setup, downloads: { ...s.setup.downloads, engine } } }));
+    this.setState({ setupBusy: true, qbMsg: '' });
+    try { await this.api('POST', '/api/setup/engine', { engine }); this.setState({ ifaces: null }); await this.loadSetup(); await this.load(true); this.loadIfaces(); }
+    catch (e) { this.say('Failed: ' + e.message); }
+    finally { this.setState({ setupBusy: false }); }
   }
   async finishSetup() {
     const d = this.draftPayload();
@@ -625,12 +642,13 @@ class Component extends DCLogic {
     const S = this.state, now = S.now, sel = S.anime.find(a => a.id === S.selId), d = S.draft || {}, H = S.health || {};
     const errors = S.events.filter(e => e.level === 'error' && now - e.ts < DAY).length;
     const ext = { anilist: 'https://anilist.co/home', qbit: S.settings.qbit_url || 'http://127.0.0.1:8080', nyaa: S.settings.nyaa_base || 'https://nyaa.si' };
+    const usesQbit = S.settings.engine === 'qbittorrent';
     const pages = [...(H.setup_done === false || S.page === 'setup' ? [['setup', 'Setup']] : []), ['season', 'Season'], ['library', 'Library'], ['activity', 'Activity'], ['settings', 'Settings']];
     const nav = pages.map(([k, label]) => {
       const on = S.page === k;
       return { label, go: () => this.go(k), color: on ? 'var(--color-accent-700)' : 'var(--color-text)', weight: on ? 600 : 400, border: on ? 'var(--color-accent)' : 'transparent', hasBadge: k === 'activity' && errors > 0, badge: errors };
     });
-    const links = [['anilist', 'AniList ↗'], ['qbit', 'qBittorrent ↗'], ['nyaa', 'Nyaa ↗']].map(([k, label]) => ({ label, go: () => this.openExternal(ext[k]) }));
+    const links = [['anilist', 'AniList ↗'], ...(usesQbit ? [['qbit', 'qBittorrent ↗']] : []), ['nyaa', 'Nyaa ↗']].map(([k, label]) => ({ label, go: () => this.openExternal(ext[k]) }));
     const poll = S.jobs.find(j => j.name === 'poll_releases');
     const statusText = !S.ready ? 'Connecting…' : H.down ? 'Service not reachable' : !S.live ? 'Demo data · service not reachable' : H.paused ? 'Paused' : `Running${poll?.next ? ' · next check ' + hm(poll.next) : ''}`;
     let banner = null;
@@ -667,7 +685,7 @@ class Component extends DCLogic {
         const n = pad(e.number, a.total);
         if (e.state === 'done') return { n, ok: true, canRetry: false, file: (e.file_path || '').split(/[\\/]/).pop(), color: 'var(--color-text)', size: mb(e.size_bytes), date: md(e.downloaded_at), left: Math.max(0, Math.ceil((e.delete_after - now) / DAY)) + ' d left', play: () => this.play(a.id, e.number) };
         const inQbit = e.state === 'queued' || e.state === 'downloading', status = qbitStatus(e.qbit_state), pct = Math.floor((e.progress || 0) * 100) + '%';
-        const msg = e.state === 'downloading' ? (status === 'Downloading' ? 'Downloading' : `Downloading (${status})`) : e.state === 'failed' ? `Failed · no matching release in ${giveUp} days` : e.state === 'queued' ? `Queued in qBittorrent (${status})` : (a.prefs || []).length ? 'Searching · no release found yet' : 'Waiting · choose a release group on the Season page';
+        const msg = e.state === 'downloading' ? (status === 'Downloading' ? 'Downloading' : `Downloading (${status})`) : e.state === 'failed' ? `Failed · no matching release in ${giveUp} days` : e.state === 'queued' ? `Queued${usesQbit ? ' in qBittorrent' : ''} (${status})` : (a.prefs || []).length ? 'Searching · no release found yet' : 'Waiting · choose a release group on the Season page';
         return { n, ok: false, canRetry: e.state === 'failed' || e.state === 'searching', file: msg, color: e.state === 'failed' ? 'var(--color-accent-700)' : 'var(--color-neutral-700)', hasBar: inQbit, pct, size: inQbit ? pct : '', date: '', left: '', retry: () => this.retry(a.id, e.number), canCancel: inQbit, cancel: () => this.cancel(a.id, e.number) };
       });
       const watched = a.skip_through ? ` · ${a.skip_through} already watched` : '';
@@ -683,16 +701,21 @@ class Component extends DCLogic {
     const levels = [['all', 'All'], ['warn', 'Warn'], ['error', 'Error']].map(([k, label]) => ({ label, pick: () => this.setState({ level: k }), bg: S.level === k ? 'var(--color-text)' : 'transparent', fg: S.level === k ? 'var(--color-bg)' : 'var(--color-text)' }));
 
     const sf = {}, sfb = {};
-    ['library_path', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'qbit_url', 'qbit_username', 'vlc_path', 'vlc_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
+    ['library_path', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'vlc_path', 'vlc_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
     ['backlog', 'autostart'].forEach(k => sfb[k] = e => { const v = e.target.checked; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
     const ac = S.account || {}, expDays = ac.token_expires ? Math.ceil((ac.token_expires - now) / DAY) : null;
 
     // -- setup wizard -------------------------------------------------------
     const su = S.setup, q = S.qrep, ok = { color: 'var(--color-text)' }, todo = { color: 'var(--color-accent-700)' };
-    const alOk = !!su?.anilist?.ok, qbOk = !!su?.qbit?.ok, isRunning = !!q?.running?.length && !qbOk;  // running is fine once connected
+    const dl = su?.downloads || {}, isBuiltin = dl.engine !== 'qbittorrent', dlOk = !!dl.ok;
+    const alOk = !!su?.anilist?.ok, qbOk = !!su?.qbit?.ok, isRunning = !isBuiltin && !!q?.running?.length && !qbOk;  // running is fine once connected
     const suv = su ? {
       al: { ...(alOk ? ok : todo), status: alOk ? '✓ Connected' : 'To do' },
-      qb: { ...(qbOk ? ok : todo), status: qbOk ? '✓ Connected' : 'To do' },
+      qb: { ...(dlOk ? ok : todo), status: dlOk ? (isBuiltin ? '✓ Ready' : '✓ Connected') : isBuiltin ? 'Not ready' : 'To do' },
+      isBuiltin, isQbit: !isBuiltin, showIface: isBuiltin || qbOk,
+      biBtn: isBuiltin ? 'btn btn-primary' : 'btn btn-ghost', qbBtn: isBuiltin ? 'btn btn-ghost' : 'btn btn-primary',
+      useBuiltin: () => this.setEngine('builtin'), useQbit: () => this.setEngine('qbittorrent'),
+      biText: dlOk ? `✓ Built-in engine running (libtorrent ${dl.version})` : dl.error ? '✕ ' + dl.error : 'Starting the built-in engine…',
       lib: { ...(su.library.writable ? ok : todo), status: su.library.writable ? '✓ Folder is writable' : 'Folder is not writable' },
       needCid: !su.anilist.client_id || S.ownCid, cid: S.cid,
       cidIntro: su.anilist.client_id ? 'Optional: use your own AniList client instead of the built-in one.' : 'This build has no built-in AniList client.',
@@ -708,11 +731,11 @@ class Component extends DCLogic {
       isRunning, systemd: q?.systemd ? ` It is a system service: stop it with “${q.systemd.replace('restart', 'stop')}”, configure, then start it again.` : '',
       qbText: S.qbMsg || (qbOk ? `✓ qBittorrent ${su.qbit.version} answers at ${S.settings.qbit_url}` : su.qbit.error && !/not readable yet/.test(su.qbit.error) ? '✕ ' + su.qbit.error : ''),
       recheck: () => this.loadSetup(), manual: S.manualQbit, manualLabel: S.manualQbit ? 'Hide manual login' : 'I already have a Web UI login', toggleManual: () => this.setState(s => ({ manualQbit: !s.manualQbit })),
-      qbOk, cantFinish: !(alOk && qbOk), finishText: alOk && qbOk ? 'Your AniList Watching list is imported when you finish.' : 'Connect AniList and qBittorrent to finish.'
+      qbOk, cantFinish: !(alOk && dlOk), finishText: alOk && dlOk ? 'Your AniList Watching list is imported when you finish.' : isBuiltin ? 'Connect AniList to finish.' : 'Connect AniList and qBittorrent to finish.'
     } : { al: todo, qb: todo, lib: todo, installs: [] };
     const ifs = S.ifaces;
     const ifaceOpts = [{ v: '', label: 'Any interface (no binding)' }, ...((ifs?.list) || []).filter(i => i.value).map(i => ({ v: i.value, label: i.name || i.value }))];
-    const ifaceText = !ifs ? 'Connect qBittorrent to list interfaces.' : (ifs.current ? `Bound to ${ifs.current}.` : 'Not bound: traffic uses whatever connection is up.') + (ifs.bypass_local_auth ? ' Warning: qBittorrent bypasses authentication for localhost; turn that off in its Web UI options.' : '');
+    const ifaceText = !ifs ? (S.settings.engine === 'qbittorrent' ? 'Connect qBittorrent to list interfaces.' : 'Interfaces unavailable.') : ifs.blocked ? '✕ ' + ifs.blocked + '.' : (ifs.current ? `Bound to ${ifs.current}.` : 'Not bound: traffic uses whatever connection is up.') + (ifs.bypass_local_auth ? ' Warning: qBittorrent bypasses authentication for localhost; turn that off in its Web UI options.' : '');
 
     let dlg = null;
     if (S.dialog) {
@@ -753,7 +776,7 @@ class Component extends DCLogic {
       levels, log,
       st: S.sDraft, sf, sfb, settingsClean: !S.sDraft._dirty, saveSettings: () => this.saveSettings(), resetSettings: () => this.setState(s => ({ sDraft: { ...s.settings } })),
       diskText: ac.disk_free ? `${mb(ac.disk_used)} used by anidash · ${mb(ac.disk_free)} free` : '—',
-      qbitText: S.qbit, testQbit: () => this.testQbit(), qbitPw: S.qbitPw, setQbitPw: e => this.setState({ qbitPw: e.target.value }),
+      draftQbit: S.sDraft.engine === 'qbittorrent', qbitText: S.qbit, testQbit: () => this.testQbit(), qbitPw: S.qbitPw, setQbitPw: e => this.setState({ qbitPw: e.target.value }),
       ifaceOpts, ifaceSel: S.ifaceSel, setIface: e => this.setState({ ifaceSel: e.target.value }), applyIface: () => this.applyIface(), ifaceText,
       anilistText: ac.user ? `@${ac.user} · token ${expDays > 14 ? 'expires in ' + expDays + ' d' : expDays > 0 ? 'expires in ' + expDays + ' d — reconnect soon' : 'expired'}` : 'Not connected',
       reconnect: () => this.reconnect(), reconnectLabel: ac.user ? 'Reconnect' : 'Connect',

@@ -36,6 +36,27 @@ def test_v1_database_upgrades(home):
     assert db.setting("library_path") == "/mnt/shared/Anime"
     assert db.setting("anilist_client_id") == "12345" and db.setting("qbit_username") == "rafae"
     assert db.setting("setup_done") is True
+    assert db.setting("engine") == "qbittorrent"  # set up with qBittorrent in v1: keeps it
     assert db.one("SELECT 1 FROM settings WHERE key='seed_ratio'") is None
     db.init()  # idempotent
     assert json.loads(db.one("SELECT value FROM settings WHERE key='port'")["value"]) == 8787
+
+
+def _at_schema_1(setup_done: bool) -> None:
+    db.close()
+    c = sqlite3.connect(paths.DB_PATH)
+    c.execute("DELETE FROM settings")
+    if setup_done:
+        c.execute("INSERT INTO settings VALUES('setup_done', 'true')")
+    c.execute("PRAGMA user_version=1")
+    c.commit()
+    c.close()
+    db.init()
+
+
+def test_engine_migration_keeps_qbittorrent_for_finished_setups(home):
+    _at_schema_1(setup_done=True)
+    assert db.setting("engine") == "qbittorrent"
+    _at_schema_1(setup_done=False)
+    assert db.setting("engine") == "builtin"  # new users get the built-in engine
+    assert db.one("PRAGMA user_version")[0] == len(db.MIGRATIONS)

@@ -24,6 +24,7 @@ dependencies = [
   "uvicorn>=0.30",
   "apscheduler>=3.10,<4",
   "httpx>=0.27",
+  "libtorrent>=2.0.11,<2.2",  # the built-in engine; wheels for Windows/Linux/macOS, CPython 3.9-3.13
   "qbittorrent-api>=2024.9",
   "keyring>=25",
   "platformdirs>=4.2",

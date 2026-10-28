@@ -57,7 +57,7 @@ def run(tray: bool = True, open_window: bool = False) -> int:
 
     import uvicorn
 
-    from . import api, db, scheduler, ui
+    from . import api, db, engine, scheduler, ui
     db.init()
     port = runtime.free_port(int(db.setting("port") or 8787))
     token = runtime.new_token()
@@ -81,6 +81,7 @@ def run(tray: bool = True, open_window: bool = False) -> int:
         time.sleep(0.05)
     runtime.write(port, token)
     log.info("anidash %s listening on http://127.0.0.1:%d", __version__, port)
+    threading.Thread(target=_start_engine, name="engine-start", daemon=True).start()  # resumes saved torrents
 
     def shutdown(*_):
         ui.request_quit()
@@ -91,7 +92,7 @@ def run(tray: bool = True, open_window: bool = False) -> int:
             runtime.clear()
             log.info("anidash stopped (forced)")
             os._exit(0)
-        timer = threading.Timer(6, force)
+        timer = threading.Timer(12, force)  # leaves time to save torrent resume data
         timer.daemon = True
         timer.start()
     ui._on_quit.append(exit_soon)
@@ -109,9 +110,18 @@ def run(tray: bool = True, open_window: bool = False) -> int:
     finally:
         server.should_exit = True
         t.join(timeout=10)
+        engine.close()  # saves resume data
         runtime.clear()
         log.info("anidash stopped")
     return 0
+
+
+def _start_engine() -> None:
+    from . import engine
+    try:
+        engine.get()
+    except Exception:
+        log.exception("download engine failed to start")
 
 
 def _tray_run() -> bool:

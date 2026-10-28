@@ -1,16 +1,14 @@
-"""qBittorrent Web API via qbittorrent-api (tracks the v5 stop/start rename and POST-only delete).
-Works with qBittorrent 4.4+ and 5.x."""
+"""The optional qBittorrent backend behind engine.QbitEngine: its Web API via qbittorrent-api (tracks the
+v5 stop/start rename and POST-only delete). Works with qBittorrent 4.4+ and 5.x."""
 import threading
 import time
-from urllib.parse import quote
 
 import qbittorrentapi
 
 from . import db, vault
+from .engine import magnet
 
 CATEGORY = "anidash"
-TRACKERS = ["http://nyaa.tracker.wf:7777/announce", "udp://open.stealth.si:80/announce",
-            "udp://tracker.opentrackr.org:1337/announce", "udp://exodus.desync.com:6969/announce"]
 _client = None
 _lock = threading.Lock()
 _login_failed_at = 0.0
@@ -53,10 +51,6 @@ def reset() -> None:
     with _lock:
         _client = None
         _login_failed_at = 0.0
-
-
-def magnet(infohash: str, name: str) -> str:
-    return f"magnet:?xt=urn:btih:{infohash}&dn={quote(name)}" + "".join(f"&tr={quote(t)}" for t in TRACKERS)
 
 
 def add(infohash: str, name: str, save_path: str, anilist_id: int) -> None:

@@ -5,7 +5,7 @@ v2 makes anidash usable by other people: Linux first, Windows second, with an in
 ## 1. Decisions locked
 - **Platforms:** Linux (any desktop, plus headless) and Windows 10/11. macOS is not a target.
 - **Distribution:** PyPI (installed with pipx), an AUR PKGBUILD, and a Windows per-user installer (PyInstaller onedir + Inno Setup). CI builds and tests on both OSes.
-- **Torrent client:** qBittorrent only (4.4+ and 5.x), set up automatically by the app.
+- **Torrent engine:** built-in libtorrent (`engine.LibtorrentEngine`, default); qBittorrent 4.4+/5.x stays available as an optional backend (`engine.QbitEngine`), set up automatically by the app.
 - **Shell:** a background process with a tray icon (pystray). The dashboard is a separate pywebview window process. No systemd in the default path; autostart uses XDG autostart or the HKCU Run key.
 - **Extras (MAL, other players, LAN access, other indexers):** out of scope for v2.
 - Unchanged from v1: AniList is the source of truth, *watched = downloaded*, 30-day retention, fallback to preference 2 after 24 h, deletes go to the Trash only, no seeding.
@@ -17,6 +17,7 @@ anidash (launcher / autostart)
  ├─ main thread: tray icon  (falls back to "headless" when no tray host)
  ├─ thread: uvicorn + FastAPI on 127.0.0.1:<8787 or next free>
  ├─ thread: APScheduler jobs + resume watchdog (wall-clock vs monotonic jump > 2 min → catch-up)
+ ├─ thread: libtorrent session alerts (built-in engine: resume data, stop-on-finish, VPN binding check)
  └─ child process: `anidash window` (pywebview; WebKitGTK / Qt / WebView2; browser fallback; on Windows
                     WebView2 is checked in the registry first, since pywebview would fall back to MSHTML)
 runtime.json (mode 600): {port, token, pid, version}: how the window and the CLI find the service
@@ -42,7 +43,7 @@ Why separate processes: GTK/WinForms and the tray each want the main thread, so 
 
 ## 5. First-run setup (in the dashboard)
 1. **AniList:** implicit grant with redirect `…/oauth/pin`. In the app window, a child window opens the authorize URL; the token is read from the redirect fragment (`#access_token=…&expires_in=…`), with the pin page's textarea as a fallback. In a plain browser: new tab plus paste. Uses the built-in public client (`anilist.PUBLIC_CLIENT_ID` = 55203); setup step 1 only asks for an ID when the user opens *Use my own client* (or a build ships without one).
-2. **qBittorrent:**
+2. **Downloads:** *Built-in (recommended)*: nothing to configure; optional VPN interface. Or *Use my qBittorrent*:
    - *detect* finds: native (`~/.config/qBittorrent/qBittorrent.conf`), nox, Flatpak (`~/.var/app/org.qbittorrent.qBittorrent/…`), Windows (`%APPDATA%\qBittorrent\qBittorrent.ini`, exe from the registry or Program Files).
    - *wait until closed*: qBit rewrites its config on exit, so the page polls every 3 s.
    - *write `[Preferences]`*: `WebUI\Enabled=true`, `Address=127.0.0.1`, `Port`, `Username=anidash`, `Password_PBKDF2="@ByteArray(salt:dk)"` (PBKDF2-HMAC-SHA512, 100k iterations, 16-byte salt), `LocalHostAuth=true`, `HostHeaderValidation=true`, `CSRFProtection=true`. Also `[LegalNotice] Accepted=true`.
@@ -50,6 +51,7 @@ Why separate processes: GTK/WinForms and the tray each want the main thread, so 
    - *start* qBit, then log in.
    - Manual path for people who already use the Web UI.
    - Optional: bind to an interface via `app/setPreferences current_network_interface`.
+   - The choice is the `engine` setting (`builtin` | `qbittorrent`); migration 2 keeps `qbittorrent` for installs that had finished setup.
 3. **Library:** folder, backlog toggle, autostart toggle.
 
 Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list).
@@ -57,6 +59,7 @@ Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list)
 ## 6. Rules: v2 changes
 - **Mid-season tracking:** new rows are `skipped` when `number ≤ skip_through`, or when backlog is off and the episode aired before tracking. Give-up clock = `search_from` or `max(airs_at, added_at)`.
 - **Query cache:** one Nyaa query per (group, alias, resolution) per poll run, so a 10-episode backlog costs 1–2 requests.
+- **Download engine (`engine.py`):** jobs and the API only call `engine.get()` (`add`, `torrents`, `files`, `rename_file`, `stop`, `remove`, `interfaces`, `bind_interface`, `health`). Built-in: one libtorrent session in the service process; DHT, PEX, LSD, encryption on; a random high listen port picked once (`bt_port`); trackers as in `engine.TRACKERS`; resume data in `DATA_DIR/torrents/*.fastresume`, saved on add, on metadata, on finish, every minute if changed and at shutdown, restored at start. **No seeding:** a finished torrent is paused at once and removed after the rename. **VPN kill switch:** with `bt_interface` set, listen and outgoing sockets bind to that interface's IPv4 address (UPnP/NAT-PMP/LSD off); when the interface is down the session pauses, never falling back; it follows address changes and resumes when it's back. Bound at start, the session starts paused on loopback until the interface is checked.
 - **Error isolation:** a failure on one episode is logged and the poll continues. `NyaaBusy` stops the run. Network errors back off 5 min; 429/403/503 back off 15 min.
 - **Replacement timeout:** if the v2 torrent vanishes for more than 10 min, or isn't finished within 24 h, keep v1, put the v2 hash in `skipped`, and log a warning.
 - **Naming:** Windows-safe on every OS: `Title: Sub` → `Title - Sub`; `:"<>|?*` removed or replaced; no trailing dots or spaces; reserved device names get a `_` prefix; 150-character cap. Path confinement compares `normcase`d resolved paths.
@@ -71,7 +74,7 @@ Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list)
 - `/api/anime` returns `airs_at` (ms) instead of a server-formatted label; the browser formats it in local time.
 
 ## 8. Packaging
-- `pyproject.toml` (hatchling): GUI entry point `anidash`, console `anidash-cli`; `[qt]` extra for a pip-only Linux window.
+- `pyproject.toml` (hatchling): GUI entry point `anidash`, console `anidash-cli`; `[qt]` extra for a pip-only Linux window. `libtorrent` (2.0.11–2.1, wheels with OpenSSL linked in) is a dependency; the PyInstaller spec `collect_all`s it and `selftest` starts and stops a session.
 - Linux pipx needs the distro's PyGObject + WebKitGTK 4.1 + Ayatana AppIndicator (`--system-site-packages`). The first run writes a per-user `.desktop` entry and icon.
 - AUR: `packaging/arch/PKGBUILD`. `python-pywebview`, `python-pystray` and `python-qbittorrent-api` are assumed to be AUR; verify before publishing.
 - Windows: `packaging/windows/anidash.spec` (onedir, windowed, version resource) + `anidash.iss`: per-user install to `%LOCALAPPDATA%\Programs\anidash`, optional autostart (fresh installs only; upgrades keep the Run value as it is) and desktop icon, *Apps & features* name + version. Installs the WebView2 Runtime with the bundled Evergreen bootstrapper (`/silent /install`, per-user) when the registry shows none; if that fails, setup says the dashboard will open in the browser. Upgrades run `anidash quit --wait` first (then Restart Manager), and a silent upgrade restarts the instance it stopped. Uninstall stops anidash, removes the Run value and keeps user data unless the user answers yes to "Also remove my settings, database and saved logins" (or passes `/REMOVEDATA`): then `anidash forget --yes` (keyring entries, secrets file, webview profile) and `%LOCALAPPDATA%\anidash` is deleted, unless the library lives inside it. The library is never touched.
