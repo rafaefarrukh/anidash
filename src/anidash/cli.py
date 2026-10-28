@@ -3,12 +3,16 @@ anidash service [--no-tray]   run in the background (what autostart uses)
 anidash window            the dashboard window only (started by the service)
 anidash status            print whether it is running, and where its files are
 anidash autostart on|off  start at login
-anidash quit              stop the running instance
+anidash quit [--wait]     stop the running instance (--wait: until it has exited; exit code 1 if it wasn't running)
+anidash forget --yes      delete saved logins (keyring), the secrets file and the window profile; keeps the library
 anidash install-systemd   headless Linux: write a systemd user unit (no tray)
 anidash --version
 """
 import json
+import shutil
 import sys
+import time
+from pathlib import Path
 
 from . import __version__
 
@@ -33,13 +37,11 @@ def main(argv=None) -> None:
         print(json.dumps({"running": bool(info), "port": info and info["port"], "data": str(paths.DATA_DIR),
                           "config": str(paths.CONFIG_DIR), "logs": str(paths.LOG_DIR)}, indent=2))
     elif cmd == "quit":
-        from . import runtime
-        info = runtime.running()
-        if info:
-            runtime.call("POST", "/api/app/quit", info)
-            print("stopping")
-        else:
-            print("not running")
+        sys.exit(quit_running(wait="--wait" in argv))
+    elif cmd == "forget":
+        if "--yes" not in argv:
+            sys.exit("anidash forget deletes your saved logins and window profile. Run `anidash forget --yes` to confirm.")
+        sys.exit(forget())
     elif cmd == "autostart" and len(argv) > 1 and argv[1] in ("on", "off"):
         from . import autostart
         autostart.set_enabled(argv[1] == "on")
@@ -54,3 +56,47 @@ def main(argv=None) -> None:
               "and, to start at boot without logging in: loginctl enable-linger $USER")
     else:
         sys.exit(__doc__)
+
+
+def quit_running(wait: bool = False, timeout: float = 15) -> int:
+    """0 = stopped (or asked to), 1 = wasn't running, 2 = still running after `timeout` (--wait only).
+    The installer uses --wait so files aren't in use when it replaces or removes them."""
+    from . import runtime
+    info = runtime.running()
+    if not info:
+        print("not running")
+        return 1 if wait else 0
+    runtime.call("POST", "/api/app/quit", info)
+    print("stopping")
+    deadline = time.monotonic() + timeout
+    while wait and runtime.probe(info["port"], timeout=0.5):
+        if time.monotonic() > deadline:
+            return 2
+        time.sleep(0.25)
+    return 0
+
+
+def forget() -> int:
+    """Stop anidash, then delete what an uninstall would otherwise leave behind outside the data folder
+    (keyring entries) plus the secrets file and the webview profile. The uninstaller removes the rest of
+    %LOCALAPPDATA%\\anidash after this returns 0; 3 means the library lives inside it, so it must stay."""
+    from . import db, paths, vault
+    if quit_running(wait=True) == 2:
+        print("anidash is still running; quit it first")
+        return 2
+    vault.forget_all()
+    shutil.rmtree(paths.WEBVIEW_DIR, ignore_errors=True)
+    print("saved logins and window profile deleted")
+    lib = None
+    if paths.DB_PATH.exists():
+        lib = db.setting("library_path")
+        db.close()
+    if lib and _inside(Path(lib), paths.DATA_DIR, paths.CONFIG_DIR, paths.LOG_DIR):
+        print(f"your library {lib} is inside anidash's data folder; that folder is kept")
+        return 3
+    return 0
+
+
+def _inside(p, *roots) -> bool:
+    p = p.expanduser().resolve()
+    return any(p == r.resolve() or r.resolve() in p.parents for r in roots)

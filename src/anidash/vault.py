@@ -13,6 +13,7 @@ from keyring.errors import KeyringError, NoKeyringError
 from . import paths
 
 SERVICE = "anidash"
+KEYS = ("anilist_token", "qbit_password")  # every key anidash stores; `anidash forget` deletes them all
 log = logging.getLogger("anidash")
 _file_mode = False
 
@@ -95,3 +96,10 @@ def delete(key: str) -> None:
         _file_write(data)
     with contextlib.suppress(KeyringError, Exception):
         keyring.delete_password(SERVICE, key)
+
+
+def forget_all() -> None:
+    """Delete every stored secret, and the secrets file itself."""
+    for key in KEYS:
+        delete(key)
+    paths.SECRETS_FILE.unlink(missing_ok=True)

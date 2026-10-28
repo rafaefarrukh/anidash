@@ -17,7 +17,8 @@ anidash (launcher / autostart)
  ├─ main thread: tray icon  (falls back to "headless" when no tray host)
  ├─ thread: uvicorn + FastAPI on 127.0.0.1:<8787 or next free>
  ├─ thread: APScheduler jobs + resume watchdog (wall-clock vs monotonic jump > 2 min → catch-up)
- └─ child process: `anidash window` (pywebview; WebKitGTK / Qt / WebView2; browser fallback)
+ └─ child process: `anidash window` (pywebview; WebKitGTK / Qt / WebView2; browser fallback; on Windows
+                    WebView2 is checked in the registry first, since pywebview would fall back to MSHTML)
 runtime.json (mode 600): {port, token, pid, version}: how the window and the CLI find the service
 ```
 Why separate processes: GTK/WinForms and the tray each want the main thread, so mixing them in one process is fragile.
@@ -65,7 +66,7 @@ Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list)
 - **v1 guard:** if v1's systemd unit is present and something non-v2 answers on :8787, start paused with a banner.
 
 ## 7. API additions
-`GET /api/health` → `{app, version, setup_done, v1_conflict, paused}` · `POST /api/ui/show`, `GET /api/ui/seq` (the window raises itself when the seq changes) · `POST /api/app/quit`, `POST /api/app/pause` · `GET /api/setup` · `GET /api/setup/qbit` · `POST /api/setup/qbit/auto {index}` · `GET|POST /api/setup/qbit/interface(s)` · `POST /api/setup/finish` · `POST /api/settings/test-qbit {url, username, password}` (tests and saves) · `POST /api/account/token {token, expires_in}`. Other changes:
+`GET /api/health` → `{app, version, setup_done, v1_conflict, paused, no_webview}` · `POST /api/ui/show`, `POST /api/ui/no-webview` (the Windows window process fell back to the browser; the dashboard shows a one-time WebView2 notice) and `/dismiss`, `GET /api/ui/seq` (the window raises itself when the seq changes) · `POST /api/app/quit`, `POST /api/app/pause` · `GET /api/setup` · `GET /api/setup/qbit` · `POST /api/setup/qbit/auto {index}` · `GET|POST /api/setup/qbit/interface(s)` · `POST /api/setup/finish` · `POST /api/settings/test-qbit {url, username, password}` (tests and saves) · `POST /api/account/token {token, expires_in}`. Other changes:
 - `/api/season` defaults to the current season, returns `airs_at` (ms) and the AniList `list_status`, and returns 502 on AniList errors (v1 returned `[]`).
 - `/api/anime` returns `airs_at` (ms) instead of a server-formatted label; the browser formats it in local time.
 
@@ -73,8 +74,8 @@ Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list)
 - `pyproject.toml` (hatchling): GUI entry point `anidash`, console `anidash-cli`; `[qt]` extra for a pip-only Linux window.
 - Linux pipx needs the distro's PyGObject + WebKitGTK 4.1 + Ayatana AppIndicator (`--system-site-packages`). The first run writes a per-user `.desktop` entry and icon.
 - AUR: `packaging/arch/PKGBUILD`. `python-pywebview`, `python-pystray` and `python-qbittorrent-api` are assumed to be AUR; verify before publishing.
-- Windows: `packaging/windows/anidash.spec` (onedir, windowed, version resource) + `anidash.iss`: per-user install to `%LOCALAPPDATA%\Programs\anidash`, optional autostart and desktop icon; uninstall runs `anidash quit` and keeps user data.
-- CI (`.github/workflows/ci.yml`): pytest on Ubuntu + Windows × Python 3.11/3.13 (the Ubuntu job also runs the real-qbittorrent-nox integration test), plus `ruff check`, then the frozen exe runs `anidash selftest <out.json>` (imports the WebView2/pythonnet window backend, tray, keyring and trash backends; hidden command) and a service smoke test. `release.yml` on `v*` tags: Windows installer (after the same selftest), sdist/wheel and `SHA256SUMS.txt` attached to the GitHub Release (`rc` tags are pre-releases); PyPI upload only when the repo variable `PUBLISH_PYPI` is `true`.
+- Windows: `packaging/windows/anidash.spec` (onedir, windowed, version resource) + `anidash.iss`: per-user install to `%LOCALAPPDATA%\Programs\anidash`, optional autostart (fresh installs only; upgrades keep the Run value as it is) and desktop icon, *Apps & features* name + version. Installs the WebView2 Runtime with the bundled Evergreen bootstrapper (`/silent /install`, per-user) when the registry shows none; if that fails, setup says the dashboard will open in the browser. Upgrades run `anidash quit --wait` first (then Restart Manager), and a silent upgrade restarts the instance it stopped. Uninstall stops anidash, removes the Run value and keeps user data unless the user answers yes to "Also remove my settings, database and saved logins" (or passes `/REMOVEDATA`): then `anidash forget --yes` (keyring entries, secrets file, webview profile) and `%LOCALAPPDATA%\anidash` is deleted, unless the library lives inside it. The library is never touched.
+- CI (`.github/workflows/ci.yml`): pytest on Ubuntu + Windows × Python 3.11/3.13 (the Ubuntu job also runs the real-qbittorrent-nox integration test), plus `ruff check`, then the frozen exe runs `anidash selftest <out.json>` (imports the WebView2/pythonnet window backend, tray, keyring and trash backends, and runs the WebView2 registry check; hidden command) and a service smoke test, and the installer is built and exercised silently (`packaging/windows/ci_installer_test.ps1`: install, selftest from the install folder, upgrade over a running copy, uninstall keeping and removing data). `release.yml` on `v*` tags: Windows installer (after the same selftest), sdist/wheel and `SHA256SUMS.txt` attached to the GitHub Release (`rc` tags are pre-releases); PyPI upload only when the repo variable `PUBLISH_PYPI` is `true`.
 
 ## 9. Before the first public release
 1. ~~Register the public AniList client and set `PUBLIC_CLIENT_ID`.~~ Done: 55203.

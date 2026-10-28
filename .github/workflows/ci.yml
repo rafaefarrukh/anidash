@@ -64,7 +64,30 @@ jobs:
           }
           Stop-Process -Id $p.Id -Force
           if (-not $ok) { Get-Content "$env:LOCALAPPDATA/anidash/Logs/anidash.log" -ErrorAction SilentlyContinue; exit 1 }
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          # Evergreen WebView2 bootstrapper; the link is Microsoft's ("Get the Link" on the WebView2 download page)
+          Invoke-WebRequest "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile packaging/windows/MicrosoftEdgeWebview2Setup.exe
+          $sig = Get-AuthenticodeSignature packaging/windows/MicrosoftEdgeWebview2Setup.exe
+          if ($sig.Status -ne "Valid" -or $sig.SignerCertificate.Subject -notmatch "O=Microsoft Corporation") { Write-Error "bootstrapper signature: $($sig.Status) $($sig.SignerCertificate.Subject)"; exit 1 }
+          choco install innosetup -y --no-progress
+          $v = python packaging/windows/make_version.py --print
+          $n = python packaging/windows/make_version.py --print-num
+          $iscc = (Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe", "$env:ProgramFiles\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          "ISCC: $iscc"
+          & $iscc "/DAppVersion=$v" "/DAppNumVersion=$n" packaging\windows\anidash.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Install, upgrade and uninstall silently
+        shell: pwsh
+        run: |
+          $v = python packaging/windows/make_version.py --print
+          ./packaging/windows/ci_installer_test.ps1 -Setup (Resolve-Path "dist/anidash-$v-setup.exe") -Version $v
       - uses: actions/upload-artifact@v4
         with:
           name: anidash-windows-folder
           path: dist/anidash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anidash-windows-installer
+          path: dist/anidash-*-setup.exe

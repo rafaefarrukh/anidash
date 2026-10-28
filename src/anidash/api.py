@@ -45,7 +45,7 @@ ALLOWED_ORIGINS: set[str] = set()
 ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 _season_cache: dict[tuple, tuple[float, list]] = {}
 _account_cache: dict = {}
-STATE = {"v1_conflict": False}
+STATE = {"v1_conflict": False, "no_webview": False}  # no_webview: the window process fell back to the browser
 
 
 def configure(port: int, token: str) -> None:
@@ -100,12 +100,25 @@ def current_season(now: datetime | None = None) -> tuple[str, int]:
 @app.get("/api/health")
 def health():
     return {"app": APP, "version": __version__, "setup_done": bool(db.setting("setup_done")),
-            "v1_conflict": STATE["v1_conflict"], "paused": scheduler.paused.is_set()}
+            "v1_conflict": STATE["v1_conflict"], "paused": scheduler.paused.is_set(),
+            "no_webview": STATE["no_webview"] and not db.setting("webview_notice_dismissed")}
 
 
 @app.post("/api/ui/show")
 def ui_show():
     ui.open_window()
+    return {"ok": True}
+
+
+@app.post("/api/ui/no-webview")
+def ui_no_webview():
+    STATE["no_webview"] = True
+    return {"ok": True}
+
+
+@app.post("/api/ui/no-webview/dismiss")
+def ui_no_webview_dismiss():
+    db.set_settings({"webview_notice_dismissed": True})  # one-time: never shown again
     return {"ok": True}
 
 

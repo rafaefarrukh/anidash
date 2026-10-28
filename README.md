@@ -76,7 +76,8 @@ With no keyring at all (headless servers), secrets go to a private file in the c
 ```bash
 anidash                    # open the dashboard (starts it in the tray if needed)
 anidash status             # running? where are its files?
-anidash quit
+anidash quit [--wait]
+anidash forget --yes       # delete saved logins and the window profile (the uninstaller's "remove my settings")
 anidash autostart on|off
 anidash service --no-tray  # run without a tray (servers)
 anidash install-systemd    # headless Linux: a systemd user unit; then `loginctl enable-linger $USER`
@@ -119,7 +120,7 @@ anidash service --no-tray       # then open http://127.0.0.1:8787
 ```
 The dashboard is `src/anidash/web/Dashboard.dc.html`. Opened as a plain file (no service), it shows demo data.
 
-Windows build: `python packaging/windows/make_version.py && pyinstaller packaging/windows/anidash.spec`, then `iscc packaging\windows\anidash.iss`. CI does this on every tag.
+Windows build: `python packaging/windows/make_version.py && pyinstaller packaging/windows/anidash.spec`, download the WebView2 bootstrapper to `packaging/windows/MicrosoftEdgeWebview2Setup.exe` (https://go.microsoft.com/fwlink/p/?LinkId=2124703), then `iscc packaging\windows\anidash.iss`. CI builds and tests the installer on every push.
 
 ## License
 

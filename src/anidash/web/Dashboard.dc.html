@@ -39,6 +39,7 @@
 <div style="display:flex;align-items:center;gap:12px;padding:10px 24px;background:var(--color-accent-100);border-bottom:2px solid var(--color-divider);font-size:13px">
 <span class="tag tag-accent">{{ bannerTag }}</span><span style="flex:1">{{ bannerText }}</span>
 <sc-if value="{{ bannerHasAct }}" hint-placeholder-val="{{ false }}"><button class="btn btn-secondary" onClick="{{ bannerAct }}" style="white-space:nowrap;flex:none">{{ bannerActLabel }}</button></sc-if>
+<sc-if value="{{ bannerHasAct2 }}" hint-placeholder-val="{{ false }}"><button class="btn btn-secondary" onClick="{{ bannerAct2 }}" style="white-space:nowrap;flex:none">{{ bannerAct2Label }}</button></sc-if>
 </div>
 </sc-if>
 
@@ -382,7 +383,7 @@ function demoData() {
     ],
     settings: { library_path: '~/Videos/Anime', retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', vlc_path: '', vlc_args: '--fullscreen', anilist_client_id: '', autostart: true },
     account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 7.1e9, disk_free: 412e9, secrets: 'Secret Service', secrets_in_file: false, version: '2.0.0 (demo)', data_dir: '~/.local/share/anidash', log_dir: '~/.local/state/anidash/log' },
-    health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false }
+    health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false, no_webview: false }
   };
 }
 
@@ -608,6 +609,7 @@ class Component extends DCLogic {
       await this.load(true); this.say('All set · importing your AniList Watching list…');
     } catch (e) { this.say('Failed: ' + e.message); }
   }
+  dismissWebview() { this.run(() => this.api('POST', '/api/ui/no-webview/dismiss'), () => this.setState(s => ({ health: { ...s.health, no_webview: false } })), ''); }
   async togglePause() {
     if (!this.state.live) return;
     try { await this.api('POST', '/api/app/pause', { paused: !this.state.health.paused }); await this.load(true); } catch (e) { this.say('Failed: ' + e.message); }
@@ -635,6 +637,8 @@ class Component extends DCLogic {
     if (S.live && H.v1_conflict) banner = { tag: 'v1 still running', text: 'The old anidash v1 service is still active, so automation is paused to avoid duplicate downloads. Run: systemctl --user disable --now anidash.service anidash-kick.timer — then restart anidash.' };
     else if (S.live && H.paused) banner = { tag: 'Paused', text: 'Automation is paused. Nothing is searched or downloaded until you resume.', act: 'Resume', fn: () => this.togglePause() };
     else if (S.live && H.down) banner = { tag: 'Offline', text: 'anidash is not running. Start it from your app menu.' };
+    else if (S.live && H.no_webview) banner = { tag: 'Opened in your browser', text: 'The anidash window needs the Microsoft Edge WebView2 Runtime, which isn\'t installed. Everything works here in the browser, but AniList login means pasting a token. Install WebView2 (free, from Microsoft), then reopen anidash to get the window and one-click AniList login.',
+      act: 'Install WebView2', fn: () => this.openExternal('https://developer.microsoft.com/microsoft-edge/webview2/consumer/'), act2: 'Dismiss', fn2: () => this.dismissWebview() };
 
     const rows = S.anime.map(a => {
       const p = a.prefs || [], on = a.id === S.selId, probing = S.probing[a.id];
@@ -725,6 +729,7 @@ class Component extends DCLogic {
     return {
       nav, links, statusText, statusDot: S.live && !H.down && !H.paused ? 'var(--color-text)' : 'var(--color-accent)',
       hasBanner: !!banner, bannerTag: banner?.tag, bannerText: banner?.text, bannerHasAct: !!banner?.act, bannerActLabel: banner?.act, bannerAct: banner?.fn,
+      bannerHasAct2: !!banner?.act2, bannerAct2Label: banner?.act2, bannerAct2: banner?.fn2,
       isSeason: S.page === 'season', isLibrary: S.page === 'library', isActivity: S.page === 'activity', isSettings: S.page === 'settings', isSetup: S.page === 'setup',
       seasonLabel: `${S.season} ${S.year}`, prevSeason: () => this.shiftSeason(-1), nextSeason: () => this.shiftSeason(1),
       syncAniList: () => this.runJob('sync_schedule'), probeAll: () => this.probeAll(),
