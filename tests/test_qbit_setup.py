@@ -1,5 +1,6 @@
 import base64
 import hashlib
+from pathlib import Path
 
 import pytest
 
@@ -78,4 +79,4 @@ def test_configure_writes_secure_webui(tmp_path, monkeypatch):
     assert sec["WebUI\\LocalHostAuth"] == "true" and sec["WebUI\\Username"] == "anidash"
     assert qbit_setup.verify_pbkdf2("s3cret", sec["WebUI\\Password_PBKDF2"])
     assert res["url"] == "http://127.0.0.1:9090"
-    assert res["backup"] and open(res["backup"]).read() == SAMPLE
+    assert res["backup"] and Path(res["backup"]).read_text() == SAMPLE

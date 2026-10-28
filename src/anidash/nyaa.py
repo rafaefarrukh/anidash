@@ -59,7 +59,8 @@ def search(query: str) -> list[Item]:
     root = ET.fromstring(r.content)
     out = []
     for it in root.iter("item"):
-        g = lambda tag, it=it: (it.findtext(NS + tag) or "").strip()
+        def g(tag, it=it):
+            return (it.findtext(NS + tag) or "").strip()
         h = g("infoHash").lower()
         if not re.fullmatch(r"[0-9a-f]{40}", h):
             continue

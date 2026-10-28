@@ -19,7 +19,7 @@ Goal: anyone on Windows 10/11 installs one `setup.exe`, connects AniList, picks 
 
 ## Manual tasks (Rafae)
 - [x] **M0** Make sure GitHub Actions is enabled (repo → Settings → Actions → General → *Allow all actions*). Every phase relies on the Windows CI jobs; when Phase 0 was pushed, GitHub showed no workflows or runs for the repo.
-- [ ] **M1** Merge the Phase 0 PR (v2 import + this plan + env hook) into `main`.
+- [x] **M1** Merge the Phase 0 PR (v2 import + this plan + env hook) into `main`.
 - [x] **M2** AniList client registered: name `AniDash`, **client ID `55203`**, redirect `https://anilist.co/api/v2/oauth/pin`. anidash uses the implicit grant, so the client secret is never needed and must never be committed.
 - [x] **M3** PyPI: skipped for now. Phase 1 makes the PyPI job opt-in (repo variable `PUBLISH_PYPI=true`).
 - [ ] **M4** Cloud environment network access must allow PyPI and GitHub (the default *Trusted* policy does). Nothing else is needed: tests don't hit AniList/Nyaa.
@@ -36,14 +36,21 @@ Goal: anyone on Windows 10/11 installs one `setup.exe`, connects AniList, picks 
 - [x] CI also runs on pushes to `claude/**` branches.
 
 ## Phase 1 — release plumbing
-1. `anilist.PUBLIC_CLIENT_ID` = the ID from M2. Setup step 1 no longer asks for a client ID unless the user opens *Use my own client* (keep that path).
-2. `release.yml`: `publish` depends only on the Windows job; the PyPI job runs only when repo variable `PUBLISH_PYPI == 'true'`, and the wheel/sdist are still attached to the GitHub Release. Generate `SHA256SUMS.txt` for all release assets (Phase 6 verifies downloads with it).
-3. **Frozen-window check:** add a hidden CLI command `anidash selftest` that imports everything the frozen app needs at runtime but the service smoke test never touches (the pywebview Windows backend `webview.platforms.winforms` + pythonnet/`clr`, `pystray`, `keyring` Windows backend, `send2trash`), prints JSON, exits non-zero on failure. Run it on the frozen exe in `ci.yml` and `release.yml`. Fix the PyInstaller spec until it passes (likely `collect_all("clr_loader")`/`pythonnet`, `collect_data_files`). Note: the exe is windowed (`console=False`), so have `selftest` write its result to a file path given as an argument, and have CI read the file.
-4. Runtime dir: on Windows put `RUNTIME_DIR` under `DATA_DIR` (not `%TEMP%`, which Storage Sense cleans). Linux unchanged.
-5. Ruff: add `[tool.ruff]` to `pyproject.toml` (target py311, line-length 130, select `E,F,W,I,B,UP,SIM`; ignore what the existing style deliberately does) so results don't depend on any user-level config, fix or `noqa` with reason, and add a ruff step to `ci.yml`.
-6. Bump `__version__` to `2.0.0rc1`; CHANGELOG entry.
+- [x] 1. `anilist.PUBLIC_CLIENT_ID` = the ID from M2. Setup step 1 no longer asks for a client ID unless the user opens *Use my own client* (keep that path).
+- [x] 2. `release.yml`: `publish` depends only on the Windows job; the PyPI job runs only when repo variable `PUBLISH_PYPI == 'true'`, and the wheel/sdist are still attached to the GitHub Release. Generate `SHA256SUMS.txt` for all release assets (Phase 6 verifies downloads with it).
+- [x] 3. **Frozen-window check:** add a hidden CLI command `anidash selftest` that imports everything the frozen app needs at runtime but the service smoke test never touches (the pywebview Windows backend `webview.platforms.winforms` + pythonnet/`clr`, `pystray`, `keyring` Windows backend, `send2trash`), prints JSON, exits non-zero on failure. Run it on the frozen exe in `ci.yml` and `release.yml`. Fix the PyInstaller spec until it passes (likely `collect_all("clr_loader")`/`pythonnet`, `collect_data_files`). Note: the exe is windowed (`console=False`), so have `selftest` write its result to a file path given as an argument, and have CI read the file.
+- [x] 4. Runtime dir: on Windows put `RUNTIME_DIR` under `DATA_DIR` (not `%TEMP%`, which Storage Sense cleans). Linux unchanged.
+- [x] 5. Ruff: add `[tool.ruff]` to `pyproject.toml` (target py311, line-length 130, select `E,F,W,I,B,UP,SIM`; ignore what the existing style deliberately does) so results don't depend on any user-level config, fix or `noqa` with reason, and add a ruff step to `ci.yml`.
+- [x] 6. Bump `__version__` to `2.0.0rc1`; CHANGELOG entry.
 
 Manual Windows checks: none yet (CI covers it).
+
+Notes from the Phase 1 session (changes from the plan):
+- Setup step 1 keeps the own-client path behind a *Use my own client* link (shown only when a built-in ID exists); saving an empty ID returns to the built-in client.
+- `release.yml`: `publish` needs the Windows job and the *build-only* `python` job (so wheel/sdist get attached); the PyPI upload is a separate `pypi` job that `publish` doesn't wait on. `rc` tags are published as pre-releases (Phase 6 ignores pre-releases).
+- `selftest` checks are required on Windows only (Linux falls back to the browser/file secrets); CI additionally requires the window backend to be `winforms/edgechromium`. The spec now `collect_all`s `pythonnet` + `clr_loader` and collects `send2trash` submodules.
+- Ruff ignores `E501` (long SQL/log lines are the house style; line-length 130 still drives import wrapping) and `B904` (`HTTPException` in `except` is the reply). Other findings were fixed; two deliberate long-lived `open()`s carry `noqa: SIM115`. Ruff is pinned in CI.
+- The test for `RUNTIME_DIR` needed a small refactor: `paths._runtime_dir(data_dir)`.
 
 ## Phase 2 — Windows installer & runtime
 1. **WebView2:** in `anidash.iss` `[Code]`, detect the runtime (registry `pv` value under `EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`, both `HKLM\SOFTWARE\WOW6432Node\...` and `HKCU\Software\...`; treat empty or `0.0.0.0` as missing — verify against Microsoft's "Distribute your app and the WebView2 Runtime" doc). If missing, run the bundled Evergreen **bootstrapper** (`MicrosoftEdgeWebview2Setup.exe`, downloaded in CI from Microsoft's fwlink, not committed) with `/silent /install`. If that fails, continue and tell the user the dashboard will open in their browser.

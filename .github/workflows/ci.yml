@@ -5,6 +5,16 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install "ruff==0.17.3"
+      - run: ruff check src tests
+
   test:
     strategy:
       fail-fast: false
@@ -24,7 +34,7 @@ jobs:
       - run: python -m pytest -q
 
   windows-build:
-    needs: test
+    needs: [lint, test]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +44,15 @@ jobs:
       - run: python -m pip install . pyinstaller
       - run: python packaging/windows/make_version.py
       - run: pyinstaller packaging/windows/anidash.spec --noconfirm --distpath dist --workpath build
+      - name: Selftest the frozen exe
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "selftest.json"
+          $p = Start-Process dist/anidash/anidash.exe -ArgumentList "selftest",$out -Wait -PassThru
+          Get-Content $out
+          if ($p.ExitCode -ne 0) { exit 1 }
+          $r = Get-Content $out -Raw | ConvertFrom-Json
+          if ($r.checks.window.detail -ne "winforms/edgechromium") { Write-Error "window backend is not WebView2"; exit 1 }
       - name: Smoke test the frozen exe
         shell: pwsh
         run: |

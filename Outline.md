@@ -28,7 +28,7 @@ Why separate processes: GTK/WinForms and the tray each want the main thread, so 
 | data (DB, webview session) | `~/.local/share/anidash` | `%LOCALAPPDATA%\anidash` |
 | config (secrets fallback, v1 import) | `~/.config/anidash` | `%LOCALAPPDATA%\anidash` |
 | logs (rotating 3×2 MB) | `~/.local/state/anidash/log` | `%LOCALAPPDATA%\anidash\Logs` |
-| runtime | `$XDG_RUNTIME_DIR/anidash` | `%LOCALAPPDATA%\anidash\…\Temp` |
+| runtime | `$XDG_RUNTIME_DIR/anidash` | `%LOCALAPPDATA%\anidash\run` (not `%TEMP%`: Storage Sense empties it) |
 | library default | `~/Videos/Anime` | `Videos\Anime` |
 
 `ANIDASH_HOME` puts everything under one folder (tests, portable use).
@@ -40,7 +40,7 @@ Why separate processes: GTK/WinForms and the tray each want the main thread, so 
 - Settings: v1 `config.toml` (port, client ID, qBit user) is folded into the `settings` table. `seed_ratio` and `seed_hours` are dropped. Added: `backlog`, `vlc_path`, `qbit_username`, `anilist_client_id`, `token_expires`, `setup_done`.
 
 ## 5. First-run setup (in the dashboard)
-1. **AniList:** implicit grant with redirect `…/oauth/pin`. In the app window, a child window opens the authorize URL; the token is read from the redirect fragment (`#access_token=…&expires_in=…`), with the pin page's textarea as a fallback. In a plain browser: new tab plus paste. Uses the built-in public client ID if one ships (`anilist.PUBLIC_CLIENT_ID`), otherwise the user creates a client.
+1. **AniList:** implicit grant with redirect `…/oauth/pin`. In the app window, a child window opens the authorize URL; the token is read from the redirect fragment (`#access_token=…&expires_in=…`), with the pin page's textarea as a fallback. In a plain browser: new tab plus paste. Uses the built-in public client (`anilist.PUBLIC_CLIENT_ID` = 55203); setup step 1 only asks for an ID when the user opens *Use my own client* (or a build ships without one).
 2. **qBittorrent:**
    - *detect* finds: native (`~/.config/qBittorrent/qBittorrent.conf`), nox, Flatpak (`~/.var/app/org.qbittorrent.qBittorrent/…`), Windows (`%APPDATA%\qBittorrent\qBittorrent.ini`, exe from the registry or Program Files).
    - *wait until closed*: qBit rewrites its config on exit, so the page polls every 3 s.
@@ -74,10 +74,10 @@ Finishing sets `setup_done` and runs `sync_schedule` (imports the Watching list)
 - Linux pipx needs the distro's PyGObject + WebKitGTK 4.1 + Ayatana AppIndicator (`--system-site-packages`). The first run writes a per-user `.desktop` entry and icon.
 - AUR: `packaging/arch/PKGBUILD`. `python-pywebview`, `python-pystray` and `python-qbittorrent-api` are assumed to be AUR; verify before publishing.
 - Windows: `packaging/windows/anidash.spec` (onedir, windowed, version resource) + `anidash.iss`: per-user install to `%LOCALAPPDATA%\Programs\anidash`, optional autostart and desktop icon; uninstall runs `anidash quit` and keeps user data.
-- CI (`.github/workflows/ci.yml`): pytest on Ubuntu + Windows × Python 3.11/3.13 (the Ubuntu job also runs the real-qbittorrent-nox integration test), then a frozen-exe smoke test. `release.yml` on `v*` tags: sdist/wheel to PyPI (trusted publishing), Windows installer, GitHub Release.
+- CI (`.github/workflows/ci.yml`): pytest on Ubuntu + Windows × Python 3.11/3.13 (the Ubuntu job also runs the real-qbittorrent-nox integration test), plus `ruff check`, then the frozen exe runs `anidash selftest <out.json>` (imports the WebView2/pythonnet window backend, tray, keyring and trash backends; hidden command) and a service smoke test. `release.yml` on `v*` tags: Windows installer (after the same selftest), sdist/wheel and `SHA256SUMS.txt` attached to the GitHub Release (`rc` tags are pre-releases); PyPI upload only when the repo variable `PUBLISH_PYPI` is `true`.
 
 ## 9. Before the first public release
-1. Register the public AniList client and set `PUBLIC_CLIENT_ID`.
+1. ~~Register the public AniList client and set `PUBLIC_CLIENT_ID`.~~ Done: 55203.
 2. Confirm the license (MIT assumed) and that bundling Archivo (OFL) and React (MIT) is noted.
 3. Verify the AUR dependency names; fill in `sha256sums` with `updpkgsums`.
 4. Set up the PyPI trusted publisher for `rafaefarrukh/anidash`.

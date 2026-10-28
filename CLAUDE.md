@@ -14,7 +14,7 @@ anidash follows the user's AniList *Watching* list, finds new episodes on Nyaa, 
 ## Commands
 ```bash
 pytest -q                          # whole suite (~4 s); the qBittorrent integration test needs qbittorrent-nox
-ruff check src tests               # lint (project config in pyproject.toml once Phase 1 lands)
+ruff check src tests               # lint (config in pyproject.toml; CI pins the version)
 anidash service --no-tray          # run headless, then http://127.0.0.1:8787
 ANIDASH_HOME=/tmp/x anidash ...    # isolate all data in one folder
 ```

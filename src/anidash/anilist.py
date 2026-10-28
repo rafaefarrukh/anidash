@@ -18,7 +18,7 @@ UA = f"anidash/{__version__} (+https://github.com/rafaefarrukh/anidash)"
 
 # Public client registered for anidash (implicit grant, redirect https://anilist.co/api/v2/oauth/pin).
 # Implicit grant needs no client secret, so shipping the ID is safe. Users can override it in Settings.
-PUBLIC_CLIENT_ID = ""  # TODO(release): register the anidash client and put its numeric ID here
+PUBLIC_CLIENT_ID = "55203"
 PIN_REDIRECT = "https://anilist.co/api/v2/oauth/pin"
 
 
