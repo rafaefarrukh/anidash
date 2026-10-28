@@ -75,7 +75,20 @@ def _m3(c: sqlite3.Connection) -> None:
       created REAL NOT NULL, tries INTEGER NOT NULL DEFAULT 0, last_error TEXT)""")
 
 
-MIGRATIONS = [_m1, _m2, _m3]
+def _m4(c: sqlite3.Connection) -> None:
+    """Player choice. A VLC path set by hand becomes a custom player with its arguments; otherwise Auto,
+    which still prefers VLC when it is installed."""
+    def get(k):
+        r = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
+        return json.loads(r[0]) if r else None
+    path, args = str(get("vlc_path") or "").strip(), get("vlc_args")
+    new = {"player": "custom", "player_path": path, "player_args": "--fullscreen" if args is None else str(args)} if path else {"player": "auto"}
+    for k, v in new.items():
+        c.execute("INSERT OR REPLACE INTO settings VALUES(?,?)", (k, json.dumps(v)))
+    c.execute("DELETE FROM settings WHERE key IN ('vlc_path','vlc_args')")
+
+
+MIGRATIONS = [_m1, _m2, _m3, _m4]
 
 SETTING_DEFAULTS = {
     "library_path": "",              # filled with paths.default_library() on first read
@@ -93,8 +106,9 @@ SETTING_DEFAULTS = {
     "bt_interface": "",              # built-in engine: bind to this interface (VPN kill switch); empty: any
     "qbit_url": "http://127.0.0.1:8080",
     "qbit_username": "anidash",
-    "vlc_path": "",                  # empty: find VLC automatically
-    "vlc_args": "--fullscreen",
+    "player": "auto",                # auto | default | vlc | mpv | mpc-hc | mpc-be | custom (player.CHOICES)
+    "player_path": "",               # custom player's executable
+    "player_args": "",               # custom player's arguments; "{file}" marks where the file goes, else it's last
     "anilist_client_id": "",         # empty: the built-in public client (anilist.PUBLIC_CLIENT_ID)
     "token_issued": 0,
     "token_expires": 0,

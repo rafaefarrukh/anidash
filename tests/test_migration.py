@@ -67,3 +67,28 @@ def test_pending_op_table(home):
     cols = {r["name"] for r in db.q("PRAGMA table_info(pending_op)")}
     assert {"kind", "src", "dst", "anilist_id", "number", "created", "tries", "last_error"} <= cols
     assert db.setting("managed_trash_days") == 14
+
+
+def _settings_at_schema_3(values: dict) -> None:
+    db.close()
+    c = sqlite3.connect(paths.DB_PATH)
+    c.execute("DELETE FROM settings")
+    for k, v in values.items():
+        c.execute("INSERT INTO settings VALUES(?,?)", (k, json.dumps(v)))
+    c.execute("PRAGMA user_version=3")
+    c.commit()
+    c.close()
+    db.init()
+
+
+def test_vlc_settings_become_a_player_choice(home):
+    _settings_at_schema_3({"vlc_path": "C:\\Tools\\VLC Portable\\vlc.exe", "vlc_args": "--fullscreen --no-osd"})
+    assert (db.setting("player"), db.setting("player_path"), db.setting("player_args")) == (
+        "custom", "C:\\Tools\\VLC Portable\\vlc.exe", "--fullscreen --no-osd")
+    assert db.one("SELECT 1 FROM settings WHERE key IN ('vlc_path','vlc_args')") is None
+    _settings_at_schema_3({"vlc_path": "/opt/vlc/vlc"})  # args never changed: VLC's old default
+    assert db.setting("player") == "custom" and db.setting("player_args") == "--fullscreen"
+    _settings_at_schema_3({"vlc_path": "", "vlc_args": "--fullscreen"})  # VLC found automatically
+    assert db.setting("player") == "auto" and db.setting("player_path") == ""
+    _settings_at_schema_3({})
+    assert db.setting("player") == "auto"

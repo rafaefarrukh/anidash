@@ -117,14 +117,24 @@ Notes from the Phase 4 session (changes from the plan):
 
 
 ## Phase 5 — player choice
-1. Settings → **Player**: Auto / System default / VLC / mpv / MPC-HC / MPC-BE / Custom (path + arguments). Detected players are listed with their paths; undetected ones greyed out.
-2. Detection: Windows registry + Program Files + PATH (VLC: existing logic; mpv: PATH, `%LOCALAPPDATA%\Programs\mpv`, scoop/winget shims; MPC-HC: `HKCU\Software\MPC-HC\MPC-HC` `ExePath`, Program Files; MPC-BE similarly). Linux: PATH + Flatpak (`org.videolan.VLC`, `io.mpv.Mpv`).
-3. Auto = first of VLC → mpv → MPC-HC → MPC-BE, else system default (`os.startfile` / `xdg-open`).
-4. If Auto falls back to the system default on Windows, show a dismissable hint once: subtitles may render incorrectly; "Install VLC" runs `winget install -e --id VideoLAN.VLC` (argument list, never a shell) when winget exists, else opens videolan.org.
-5. Migration: `vlc_path`/`vlc_args` → `player=custom` (if a path was set) or `auto`.
-6. Tests for selection order, migration, argument handling (`shlex` posix vs Windows).
+- [x] 1. Settings → **Player**: Auto / System default / VLC / mpv / MPC-HC / MPC-BE / Custom (path + arguments). Detected players are listed with their paths; undetected ones greyed out.
+- [x] 2. Detection: Windows registry + Program Files + PATH (VLC: existing logic; mpv: PATH, `%LOCALAPPDATA%\Programs\mpv`, scoop/winget shims; MPC-HC: `HKCU\Software\MPC-HC\MPC-HC` `ExePath`, Program Files; MPC-BE similarly). Linux: PATH + Flatpak (`org.videolan.VLC`, `io.mpv.Mpv`).
+- [x] 3. Auto = first of VLC → mpv → MPC-HC → MPC-BE, else system default (`os.startfile` / `xdg-open`).
+- [x] 4. If Auto falls back to the system default on Windows, show a dismissable hint once: subtitles may render incorrectly; "Install VLC" runs `winget install -e --id VideoLAN.VLC` (argument list, never a shell) when winget exists, else opens videolan.org.
+- [x] 5. Migration: `vlc_path`/`vlc_args` → `player=custom` (if a path was set) or `auto`.
+- [x] 6. Tests for selection order, migration, argument handling (`shlex` posix vs Windows).
 
 Manual Windows checks: Play with each installed player, with none installed, with a path containing spaces and non-ASCII characters.
+Also: the "Install VLC" hint after Auto falls back to Windows' player (winget console window; without winget the VideoLAN page opens), and that "Dismiss" keeps it away.
+
+Notes from the Phase 5 session (changes from the plan):
+- Settings are `player`, `player_path`, `player_args` (the last two for Custom only); known players get fixed fullscreen arguments (`--fullscreen`, `--fs`, `/fullscreen`), and VLC/mpv get `--` before the file. Custom arguments may contain `{file}`; otherwise the episode is appended.
+- A specifically chosen player that isn't installed (or a missing custom program) is an error the dashboard shows (HTTP 409), not a silent fallback; only Auto falls back.
+- The hint shows only for Auto on Windows (Linux default players render ASS fine), once: `player_hint_dismissed`. winget runs with `--accept-source-agreements --accept-package-agreements` in a new console window so the user sees its progress.
+- Windows argument handling: `shlex.split(posix=False)` keeps backslashes; surrounding quotes are then stripped from each argument.
+- Migration 4 follows the plan (custom if `vlc_path` was set, keeping `vlc_args` or VLC's old default `--fullscreen`; else auto) and drops `vlc_path`/`vlc_args`. Custom `vlc_args` without a path are not kept, since Auto uses each player's own defaults.
+- MPC-BE's registry location (`HKCU\Software\MPC-BE` / `HKLM\SOFTWARE\MPC-BE`, value `ExePath`) is a best guess with Program Files as the fallback; verify on a machine with MPC-BE installed.
+
 
 ## Phase 6 — updates, docs, release prep
 1. **Update check:** monthly (setting: monthly / off; stores `update_checked_at`), plus *Check now* in Settings. `GET https://api.github.com/repos/rafaefarrukh/anidash/releases/latest`, compare versions (ignore pre-releases unless the running version is one). Banner: version, release notes link.

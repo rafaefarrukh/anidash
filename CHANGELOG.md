@@ -10,6 +10,13 @@ Release plumbing for the Windows app.
 - Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
 - Ruff config in `pyproject.toml` and a lint job in CI.
 
+### Player choice
+
+- Settings → Player: *Auto* (VLC → mpv → MPC-HC → MPC-BE, else the system default), a specific player, the system default, or a custom program with arguments (`{file}` places the episode). Installed players are listed with their paths; missing ones are greyed out.
+- Detection covers PATH, the Windows registry, Program Files, scoop/winget shims, and Flatpak on Linux.
+- If Auto falls back to Windows' own player, a one-time hint offers to install VLC (winget, or the VideoLAN page).
+- Your VLC settings carry over (database migration 4): a VLC path you set becomes a custom player with your arguments; otherwise Auto.
+
 ### Library location & file routing
 
 - Setup and Settings show where the library lives (local disk, removable drive, network share, cloud-synced folder) with free space. A OneDrive/Dropbox/Google Drive/iCloud folder needs an explicit "I understand this will upload every episode"; network and removable folders get a warning; under 10 GB free gets a warning.
