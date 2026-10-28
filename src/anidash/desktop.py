@@ -2,6 +2,7 @@
 Runs as its own process; finds the service through runtime.json."""
 import contextlib
 import logging
+import sys
 import threading
 import time
 import webbrowser
@@ -14,6 +15,25 @@ from . import paths, runtime
 
 log = logging.getLogger("anidash")
 webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
+WV2_CLIENT = r"Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+
+
+def webview2_version() -> str | None:
+    """The installed Evergreen WebView2 Runtime, or None. pywebview doesn't fail without it: it falls back
+    to MSHTML (IE), which can't run the dashboard, so check first. Per Microsoft's "Distribute your app and
+    the WebView2 Runtime" (learn.microsoft.com/microsoft-edge/webview2/concepts/distribution): `pv` under
+    HKLM's 32-bit view (WOW6432Node on 64-bit Windows) or under HKCU; missing, empty or 0.0.0.0 = not installed."""
+    import winreg
+    for root, sub, view in ((winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\" + WV2_CLIENT, winreg.KEY_WOW64_32KEY),
+                            (winreg.HKEY_CURRENT_USER, "Software\\" + WV2_CLIENT, 0)):
+        try:
+            with winreg.OpenKey(root, sub, 0, winreg.KEY_READ | view) as k:
+                v = str(winreg.QueryValueEx(k, "pv")[0] or "").strip()
+        except OSError:
+            continue
+        if v and v != "0.0.0.0":
+            return v
+    return None
 
 
 class Bridge:
@@ -58,13 +78,20 @@ class Bridge:
         return {"error": "AniList window closed before login finished"}
 
 
-def _raise_loop(win, info):
-    seen = None
+def _raise_loop(win, info, gone_after: int = 30):
+    seen, misses = None, 0
     while True:
         time.sleep(1)
         try:
             seq = httpx.get(f"http://127.0.0.1:{info['port']}/api/ui/seq", timeout=2).json()["seq"]
+            misses = 0
         except Exception:
+            misses += 1
+            if misses >= gone_after:  # the service died without closing us (crash, kill): don't linger holding files
+                log.warning("anidash service is gone; closing the window")
+                with contextlib.suppress(Exception):
+                    win.destroy()
+                return
             continue
         if seen is not None and seq != seen:
             try:
@@ -89,6 +116,8 @@ def main():
                               f"<p>Start it from your app menu. Logs: <code>{paths.LOG_DIR}</code></p></body>")
         webview.start()
         return
+    if sys.platform == "win32" and not webview2_version():
+        return _browser_fallback(info, "the WebView2 Runtime is not installed")
     bridge = Bridge()
     win = webview.create_window("anidash", f"http://127.0.0.1:{info['port']}/", js_api=bridge,
                                 width=1440, height=920, min_size=(1040, 640))
@@ -98,5 +127,12 @@ def main():
         webview.start(lambda: _raise_loop(win, info), private_mode=False, storage_path=str(paths.WEBVIEW_DIR),
                       icon=str(paths.ASSETS_DIR / "icon.png"))
     except webview.WebViewException as e:  # no GTK/Qt/WebView2: the dashboard works in any browser too
-        log.warning("no webview backend (%s); opening the dashboard in your browser", e)
-        webbrowser.open(f"http://127.0.0.1:{info['port']}/")
+        _browser_fallback(info, str(e))
+
+
+def _browser_fallback(info: dict, why: str) -> None:
+    log.warning("no webview backend (%s); opening the dashboard in your browser", why)
+    if sys.platform == "win32":  # the dashboard then explains how to get the window back (once)
+        with contextlib.suppress(Exception):
+            runtime.call("POST", "/api/ui/no-webview", info)
+    webbrowser.open(f"http://127.0.0.1:{info['port']}/")

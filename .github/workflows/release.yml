@@ -56,9 +56,16 @@ jobs:
       - name: Installer
         shell: pwsh
         run: |
+          Invoke-WebRequest "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile packaging/windows/MicrosoftEdgeWebview2Setup.exe
+          $sig = Get-AuthenticodeSignature packaging/windows/MicrosoftEdgeWebview2Setup.exe
+          if ($sig.Status -ne "Valid" -or $sig.SignerCertificate.Subject -notmatch "O=Microsoft Corporation") { Write-Error "bootstrapper signature: $($sig.Status) $($sig.SignerCertificate.Subject)"; exit 1 }
           $v = python packaging/windows/make_version.py --print
+          $n = python packaging/windows/make_version.py --print-num
           choco install innosetup -y --no-progress
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" packaging\windows\anidash.iss
+          $iscc = (Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe", "$env:ProgramFiles\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          "ISCC: $iscc"
+          & $iscc "/DAppVersion=$v" "/DAppNumVersion=$n" packaging\windows\anidash.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer

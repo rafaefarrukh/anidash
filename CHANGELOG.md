@@ -10,6 +10,15 @@ Release plumbing for the Windows app.
 - Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
 - Ruff config in `pyproject.toml` and a lint job in CI.
 
+### Windows installer & runtime
+
+- The installer installs the Microsoft Edge WebView2 Runtime when it is missing (Evergreen bootstrapper, per-user, no admin). If that fails it says so and anidash uses the browser.
+- Windows without WebView2: anidash now detects that itself (pywebview would fall back to Internet Explorer's engine), opens the dashboard in the browser and shows a one-time notice on how to get the window and one-click AniList login.
+- Uninstall asks "Also remove my settings, database and saved logins?" (default no; `/REMOVEDATA` for silent uninstalls) and always removes the autostart entry. The library folder is never touched.
+- Upgrades stop a running anidash first (and restart it after a silent upgrade), keep your autostart choice, and *Apps & features* shows "anidash" with its version.
+- New CLI: `anidash forget --yes` (delete saved logins and the window profile) and `anidash quit --wait`.
+- CI builds the installer on every push and installs, upgrades and uninstalls it silently on Windows.
+
 ## 2.0.0 — unreleased
 
 v2 makes anidash installable by other people, on Linux and Windows.

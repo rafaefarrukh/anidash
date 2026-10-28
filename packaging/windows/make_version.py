@@ -15,4 +15,7 @@ pathlib.Path(__file__).with_name("version_info.txt").write_text(f"""VSVersionInf
     StringStruct('ProductVersion', '{ver}'), StringStruct('LegalCopyright', 'MIT License')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])])
 """)
-print(ver) if "--print" in sys.argv else None
+if "--print" in sys.argv:
+    print(ver)
+elif "--print-num" in sys.argv:  # Inno's VersionInfoVersion wants four numbers (2.0.0rc1 -> 2.0.0.1)
+    print(".".join(map(str, t)))

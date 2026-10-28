@@ -21,6 +21,16 @@ def _window() -> str:
         return "qt"
 
 
+def _webview2() -> str:
+    if not IS_WIN:
+        return "n/a"
+    from .desktop import webview2_version
+    v = webview2_version()
+    if not v:
+        raise RuntimeError("WebView2 Runtime not found in the registry")
+    return v
+
+
 def _tray() -> str:
     import pystray
     mod = pystray.Icon.__module__
@@ -49,8 +59,9 @@ def _modules() -> str:
 
 
 # name -> (check, required). Linux falls back to the browser and file secrets, so only Windows insists.
+# webview2 isn't required (users without it get the browser); CI requires it on its runners, which have it.
 CHECKS: dict[str, tuple[Callable[[], str], bool]] = {
-    "window": (_window, IS_WIN), "tray": (_tray, IS_WIN), "keyring": (_keyring, IS_WIN),
+    "window": (_window, IS_WIN), "webview2": (_webview2, False), "tray": (_tray, IS_WIN), "keyring": (_keyring, IS_WIN),
     "send2trash": (_trash, True), "modules": (_modules, True)}
 
 
