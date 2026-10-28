@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=anidash
+GenericName=Anime episode automation
+Comment=Follow your AniList list: new episodes download, get named and synced
+Exec=anidash
+Icon=anidash
+Terminal=false
+Categories=AudioVideo;Video;Network;
+StartupWMClass=anidash

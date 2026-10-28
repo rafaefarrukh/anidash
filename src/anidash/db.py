@@ -1,0 +1,182 @@
+"""SQLite storage. One connection per thread, WAL, autocommit unless inside tx().
+Schema changes are numbered migrations tracked with PRAGMA user_version (v1 databases are 0)."""
+import json
+import logging
+import sqlite3
+import threading
+import time
+import tomllib
+from contextlib import contextmanager
+
+from . import paths
+
+log = logging.getLogger("anidash")
+_local = threading.local()
+
+BASE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS anime(
+  anilist_id INTEGER PRIMARY KEY, title_en TEXT, title_romaji TEXT, title_native TEXT,
+  description TEXT, cover_url TEXT, site_url TEXT, total_episodes INTEGER, season TEXT,
+  season_year INTEGER, airing_status TEXT, display_title TEXT NOT NULL, search_alias TEXT NOT NULL,
+  episode_offset INTEGER NOT NULL DEFAULT 0, trusted_only INTEGER NOT NULL DEFAULT 1,
+  probe_json TEXT, active INTEGER NOT NULL DEFAULT 1, added_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS preference(
+  anilist_id INTEGER NOT NULL REFERENCES anime ON DELETE CASCADE, rank INTEGER NOT NULL,
+  grp TEXT NOT NULL, resolution INTEGER NOT NULL, PRIMARY KEY(anilist_id, rank));
+CREATE TABLE IF NOT EXISTS episode(
+  anilist_id INTEGER NOT NULL REFERENCES anime ON DELETE CASCADE, number INTEGER NOT NULL,
+  airs_at REAL, state TEXT NOT NULL DEFAULT 'scheduled', chosen_group TEXT, version INTEGER,
+  infohash TEXT, torrent_name TEXT, file_path TEXT, size_bytes INTEGER, downloaded_at REAL,
+  delete_after REAL, anilist_synced INTEGER NOT NULL DEFAULT 0,
+  replacing INTEGER NOT NULL DEFAULT 0, old_hash TEXT, old_path TEXT, queued_at REAL, search_from REAL,
+  PRIMARY KEY(anilist_id, number));
+CREATE INDEX IF NOT EXISTS episode_state ON episode(state);
+CREATE TABLE IF NOT EXISTS event(
+  id INTEGER PRIMARY KEY, ts REAL NOT NULL, level TEXT NOT NULL, anilist_id INTEGER,
+  episode INTEGER, message TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS skipped(
+  anilist_id INTEGER NOT NULL REFERENCES anime ON DELETE CASCADE, number INTEGER NOT NULL,
+  infohash TEXT NOT NULL, PRIMARY KEY(anilist_id, number, infohash));
+"""
+
+
+def _m1(c: sqlite3.Connection) -> None:
+    """v2: AniList progress at track time (episodes up to it are never fetched), replacement timing,
+    v1's config.toml folded into settings, seeding settings dropped (torrents are removed on completion)."""
+    c.execute("ALTER TABLE anime ADD COLUMN skip_through INTEGER NOT NULL DEFAULT 0")
+    c.execute("ALTER TABLE episode ADD COLUMN replace_started REAL")
+    c.execute("UPDATE episode SET replace_started=strftime('%s','now') WHERE replacing=1")
+    c.execute("DELETE FROM settings WHERE key IN ('seed_ratio','seed_hours')")
+    cfg_file = paths.CONFIG_DIR / "v1-config.toml"
+    if cfg_file.exists():
+        try:
+            cfg = tomllib.loads(cfg_file.read_text())
+            for k in ("anilist_client_id", "qbit_username", "port"):
+                if cfg.get(k) not in (None, ""):
+                    c.execute("INSERT OR REPLACE INTO settings VALUES(?,?)", (k, json.dumps(cfg[k])))
+            # a v1 user already went through setup
+            c.execute("INSERT OR REPLACE INTO settings VALUES('setup_done','true')")
+        except (OSError, tomllib.TOMLDecodeError) as e:
+            log.warning("could not read v1 config: %s", e)
+
+
+MIGRATIONS = [_m1]
+
+SETTING_DEFAULTS = {
+    "library_path": "",              # filled with paths.default_library() on first read
+    "retention_days": 30,
+    "fallback_hours": 24,
+    "poll_minutes": 20,
+    "give_up_days": 7,
+    "backlog": True,                 # fetch already-aired episodes past your AniList progress when tracking
+    "nyaa_base": "https://nyaa.si",
+    "qbit_url": "http://127.0.0.1:8080",
+    "qbit_username": "anidash",
+    "vlc_path": "",                  # empty: find VLC automatically
+    "vlc_args": "--fullscreen",
+    "anilist_client_id": "",         # empty: the built-in public client (anilist.PUBLIC_CLIENT_ID)
+    "token_issued": 0,
+    "token_expires": 0,
+    "port": 8787,
+    "setup_done": False,
+}
+
+
+def conn() -> sqlite3.Connection:
+    c = getattr(_local, "c", None)
+    if c is not None and getattr(_local, "path", None) != paths.DB_PATH:  # tests swap the data directory
+        c.close()
+        c = None
+    if c is None:
+        _local.path = paths.DB_PATH
+        paths.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        c = sqlite3.connect(paths.DB_PATH, timeout=30, isolation_level=None, check_same_thread=False)
+        c.row_factory = sqlite3.Row
+        c.execute("PRAGMA journal_mode=WAL")
+        c.execute("PRAGMA foreign_keys=ON")
+        _local.c = c
+    return c
+
+
+def close() -> None:
+    c = getattr(_local, "c", None)
+    if c is not None:
+        c.close()
+        _local.c = None
+
+
+def init() -> None:
+    c = conn()
+    c.executescript(BASE_SCHEMA)
+    ver = c.execute("PRAGMA user_version").fetchone()[0]
+    for i, m in enumerate(MIGRATIONS[ver:], ver + 1):
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            m(c)
+            c.execute(f"PRAGMA user_version={i}")
+            c.execute("COMMIT")
+        except BaseException:
+            c.execute("ROLLBACK")
+            raise
+        log.info("database migrated to schema %d", i)
+    try:
+        paths.DB_PATH.chmod(0o600)
+    except OSError:
+        pass
+
+
+def q(sql, *a):
+    return conn().execute(sql, a).fetchall()
+
+
+def one(sql, *a):
+    return conn().execute(sql, a).fetchone()
+
+
+def x(sql, *a):
+    return conn().execute(sql, a)
+
+
+@contextmanager
+def tx():
+    c = conn()
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        yield c
+        c.execute("COMMIT")
+    except BaseException:
+        c.execute("ROLLBACK")
+        raise
+
+
+# settings ------------------------------------------------------------------
+def _default(key):
+    if key == "library_path":
+        return str(paths.default_library())
+    return SETTING_DEFAULTS.get(key)
+
+
+def setting(key):
+    r = one("SELECT value FROM settings WHERE key=?", key)
+    v = json.loads(r["value"]) if r else None
+    return _default(key) if v in (None, "") and key in SETTING_DEFAULTS else v
+
+
+def settings_all() -> dict:
+    return {k: setting(k) for k in SETTING_DEFAULTS}
+
+
+def set_settings(values: dict) -> None:
+    with tx() as c:
+        for k, v in values.items():
+            c.execute("INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                      (k, json.dumps(v)))
+
+
+# events --------------------------------------------------------------------
+def event(level: str, message: str, anilist_id=None, episode=None) -> None:
+    getattr(log, {"warn": "warning"}.get(level, level))(message)
+    x("INSERT INTO event(ts, level, anilist_id, episode, message) VALUES(?,?,?,?,?)",
+      time.time(), level, anilist_id, episode, message)
+    x("DELETE FROM event WHERE ts < ?", time.time() - 90 * 86400)

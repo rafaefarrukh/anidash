@@ -1,128 +1,126 @@
 # anidash
 
-**Set-and-forget anime downloads for Arch-based Linux.** anidash watches your [AniList](https://anilist.co) "Watching" list, finds new episodes on [Nyaa](https://nyaa.si) from the release groups you prefer, downloads them with qBittorrent, names them `~/Anime/<Title>/<Title> - NN.mkv`, updates your AniList progress, and moves each file to the Trash 30 days after download. You watch in VLC, from the dashboard or however you like.
+anidash follows your AniList **Watching** list. When a new episode airs, it finds the release you prefer on Nyaa, downloads it with qBittorrent, saves it as `<Library>/<Title>/<Title> - 05.mkv`, updates your AniList progress and moves the file to the Trash after 30 days. Watch with VLC, from the dashboard or however you like.
 
-It runs entirely on your machine: a local background service plus a small desktop window. There is no cloud component and no account other than your own AniList.
+It runs on **Linux** (any desktop; headless works too) and **Windows 10/11**. Everything stays on your computer: the dashboard is served on `127.0.0.1` only.
 
-## Contents
+![anidash Season page](design/screenshot-season.png)
 
-- [What you need](#what-you-need)
-- [Quick start](#quick-start)
-- [First-time setup details](#first-time-setup-details)
-- [Using the dashboard](#use)
-- [Where things live](#files)
-- [Logs and control](#logs-and-control)
-- [How it decides what to download](#rules-in-short)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [Development](#development)
-- [Uninstall](#uninstall)
+## Install
 
-## What you need
+### Windows
+Download `anidash-x.y.z-setup.exe` from [Releases](https://github.com/rafaefarrukh/anidash/releases) and run it. No admin rights are needed. Install [qBittorrent](https://www.qbittorrent.org/download) too (`winget install qBittorrent.qBittorrent`), and optionally VLC.
 
-- **Linux with pacman and systemd** (written for EndeavourOS; other Arch-based distros should work). The installer uses `pacman`, so other distros need to install the equivalent packages by hand.
-- **An AniList account.** You will create a free API client in step 1 of setup (about two minutes).
-- **sudo access**, used only for installing packages and enabling qBittorrent.
-- A desktop session (GTK/WebKit) for the dashboard window.
-
-The installer pulls in everything else: `python`, `python-gobject`, `webkit2gtk-4.1`, `vlc`, `qbittorrent-nox`, `libsecret`, `glib2`.
-
-## Quick start
-
+### Arch / EndeavourOS / Manjaro
 ```bash
-git clone https://github.com/rafaefarrukh/anidash.git
-cd anidash
-chmod +x install.sh
-./install.sh
+paru -S anidash          # or yay -S anidash
 ```
 
-Run it as your normal user (not root). Then open **anidash** from your app menu.
+### Any Linux (pipx)
+The window uses your distro's WebKitGTK, so install that first, then anidash with pipx:
 
-The installer:
-1. installs missing packages with pacman;
-2. copies the app to `~/.local/share/anime-dl/app` and builds a Python venv beside it;
-3. offers to enable `qbittorrent-nox@$USER` and shows its first-run temporary password;
-4. runs `anidash setup` (AniList login, qBittorrent login, library folder);
-5. enables `anidash.service` and `anidash-kick.timer`, then adds an **anidash** launcher to your app menu.
+| Distro | System packages |
+|---|---|
+| Arch | `sudo pacman -S python-gobject webkit2gtk-4.1 libayatana-appindicator python-pipx qbittorrent` |
+| Debian / Ubuntu / Mint | `sudo apt install python3-gi gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 pipx qbittorrent` |
+| Fedora | `sudo dnf install python3-gobject webkit2gtk4.1 libayatana-appindicator-gtk3 pipx qbittorrent` |
 
-Re-running `install.sh` upgrades in place and keeps your data.
+```bash
+pipx install --system-site-packages anidash
+anidash
+```
+The first launch adds anidash to your app menu. No WebKitGTK? `pipx install "anidash[qt]"` uses Qt instead, and if neither is available the dashboard opens in your browser.
 
-## First-time setup details
+## First run
 
-### AniList login (asked during setup)
-1. Go to <https://anilist.co/settings/developer> → **Create New Client**.
-2. Name: `anidash`. Redirect URL: `https://anilist.co/api/v2/oauth/pin`.
-3. Paste the Client ID into setup. A browser tab opens; approve it and paste the token it shows.
+anidash opens a three-step setup:
 
-Tokens last a year. Settings warns you 14 days before expiry; **Reconnect** there repeats step 3.
+1. **AniList.** Press *Connect AniList*, approve anidash in the window that opens, and you're done. The token lasts a year; Settings warns you two weeks before it expires.
+2. **qBittorrent.** Quit qBittorrent, then press *Configure automatically*. anidash turns on qBittorrent's Web UI for this computer only, with a private random login, keeps a backup of qBittorrent's settings, and starts it again. Already use the Web UI (Sonarr, a phone app…)? Choose *I already have a Web UI login* instead, so your existing login keeps working.
+   - Optional: bind qBittorrent to your VPN interface. That's the kill switch: if the VPN drops, torrents stop instead of using your real IP. Keep the rest of the computer off the VPN if you can, because Nyaa blocks many VPN exit IPs.
+3. **Library.** Pick the folder. Tick *Start at login* to keep anidash in the tray.
 
-### qBittorrent
-- Web UI at `http://127.0.0.1:8080` (change it in Settings). Use a real password and leave *Bypass authentication for localhost* **off**.
-- Bind qBittorrent to your VPN interface (Options → Advanced → Network interface). Leave the rest of the system off the VPN: Nyaa blocks most VPN exit IPs, and the RSS feed is fetched over your normal connection.
+Finishing imports the shows on your AniList Watching list.
 
 ## Use
 
-- **Season:** pick the season, then **Track** shows (this sets them to Watching on AniList). Use **Probe all** to see which groups and resolutions exist, then pick preference 1 and 2 for each show and **Save**. Shows already on your AniList Watching list are imported by **Sync AniList**.
-- **Library:** the Today card lists the last 24 hours. Use **Play** for the latest episode; the episode list shows how many days are left before each one is deleted.
-- **Activity:** downloads in progress, job status with **Run now**, and the log.
-- **Remove a show:** turn on Remove mode → ✕ → choose a status and score. AniList is updated first. If that fails, nothing is deleted.
+- **Season:** browse a season and **Track** shows (this sets them to Watching on AniList). For each show, press **Probe Nyaa** to see which groups and resolutions exist, pick preference 1 and 2, then **Save**. Nothing downloads for a show until it has a preference.
+- **Library:** *Today* lists the last 24 hours. **Play** opens the newest episode. Each episode shows how many days are left before it goes to the Trash.
+- **Activity:** downloads in progress, the scheduled jobs (with **Run now**) and the log.
+- **Remove a show:** turn on *Remove mode*, press ✕, then choose an AniList status and score. AniList is updated first, and if that fails nothing is deleted.
+- **Tray icon:** open the dashboard, check for episodes now, pause automation, quit. Closing the window leaves anidash running in the tray.
 
-## Files
+## How it decides
 
-| What | Where |
-|---|---|
-| Bootstrap config (port, client ID, qBit user) | `~/.config/anime-dl/config.toml` |
-| Database (settings, shows, episodes, log) | `~/.local/share/anime-dl/anidash.db` |
-| App + venv | `~/.local/share/anime-dl/app`, `…/venv` |
-| AniList window session | `~/.local/share/anime-dl/webview` |
-| Secrets (AniList token, qBit password) | system keyring, service `anidash` |
-| Library | `~/Anime` (Settings) |
+- Only preference 1 for the first 24 h after airing, then preference 2 as well. After 7 days with nothing found, the episode is marked failed; **Retry** restarts the clock.
+- A release is accepted only if it's a single `.mkv`/`.mp4` of 50 MB–3 GB, from a trusted uploader when *Trusted only* is on, and its episode number (after the offset) matches.
+- If a v2 appears within 3 days, it replaces v1 (v1 goes to the Trash) and the 30-day clock restarts.
+- **Tracking mid-season:** episodes up to your AniList progress are never downloaded. Aired episodes after it are fetched once (turn this off in Settings → *Already-aired episodes*).
+- Nothing is deleted outright: purge and removal use the Trash / Recycle Bin, and only inside the library folder.
+- No seeding: a torrent is removed from qBittorrent as soon as its file is in place.
+- File names are Windows-safe on every OS (`Re:Zero` → `ReZero`, `Title: Sub` → `Title - Sub`), so a library on a partition shared between Linux and Windows works from both.
 
-## Logs and control
+## Where things are
+
+| | Linux | Windows |
+|---|---|---|
+| Database (settings, shows, episodes, log) | `~/.local/share/anidash/` | `%LOCALAPPDATA%\anidash\` |
+| Logs | `~/.local/state/anidash/log/` | `%LOCALAPPDATA%\anidash\Logs\` |
+| Secrets (AniList token, qBittorrent password) | system keyring (GNOME Keyring / KWallet) | Windows Credential Manager |
+| Library (default) | `~/Videos/Anime` | `Videos\Anime` |
+
+With no keyring at all (headless servers), secrets go to a private file in the config folder, and Settings says so.
+
+## Command line
 
 ```bash
-journalctl --user -u anidash -f          # live log (also shown on the Activity page)
-systemctl --user restart anidash
-systemctl --user list-timers anidash-kick.timer
-~/.local/share/anime-dl/venv/bin/python -m anidash kick poll_releases   # run a job now
+anidash                    # open the dashboard (starts it in the tray if needed)
+anidash status             # running? where are its files?
+anidash quit
+anidash autostart on|off
+anidash service --no-tray  # run without a tray (servers)
+anidash install-systemd    # headless Linux: a systemd user unit; then `loginctl enable-linger $USER`
 ```
 
-The service runs its own schedule: release polling every 20 minutes, download checks every minute, AniList retries every 15 minutes, schedule sync at 06:00 and purge at 04:00. `anidash-kick.timer` is `Persistent=true`, so after suspend or a reboot it fires once and the service catches up on anything it missed.
+On a headless machine, open `http://127.0.0.1:8787` through an SSH tunnel (`ssh -L 8787:127.0.0.1:8787 server`).
 
-## Rules in short
+## Upgrading from v1
 
-- Preference 1 only for the first 24 h after airing, then preference 2. After 7 days the episode is marked failed; **Retry** restarts the clock with both preferences allowed.
-- An episode is accepted only when it is a single `.mkv`/`.mp4` between 50 MB and 3 GB, from a trusted uploader if *Trusted only* is on, and its number after the offset matches.
-- If a v2 appears within 3 days, it silently replaces v1 (v1 goes to the Trash) and the 30-day clock restarts.
-- Nothing is ever deleted outright: purge and removal use `gio trash`, only inside the library folder.
+v2 imports v1's database and settings on first start (Linux). **Stop the v1 service first**. anidash refuses to download while v1 is still running, to avoid fetching everything twice:
 
-## Security
-
-- Listens on `127.0.0.1:8787` only, and checks the Host header against DNS rebinding.
-- Every mutating API call needs a per-start random token (injected into the dashboard page; the timer reads it from `$XDG_RUNTIME_DIR/anidash.token`, mode 600) plus a same-origin check.
-- VLC and `gio` are run with argument lists, never a shell. Downloaded files are never executed.
+```bash
+systemctl --user disable --now anidash.service anidash-kick.timer
+rm ~/.config/systemd/user/anidash{,-kick}.{service,timer} ~/.local/share/applications/anidash.desktop
+rm -r ~/.local/share/anime-dl/app ~/.local/share/anime-dl/venv   # the old code; your data was copied
+```
 
 ## Troubleshooting
 
-- **"Demo data · service not reachable" in the header:** the service is down. Run `systemctl --user status anidash`.
-- **Keyring errors at boot:** the service starts before your wallet is unlocked. It recovers on the next job once you log in. On KDE, make sure KWallet's Secret Service integration is enabled.
-- **Nyaa 429/403 in the log:** your connection is on a VPN or shared IP. The service backs off for 15 minutes; you can set a mirror in Settings → Nyaa base URL.
-- **Run the tests:** `cd ~/.local/share/anime-dl/app && ../venv/bin/python -m pytest -q tests`
+- **No tray icon on GNOME:** install the *AppIndicator and KStatusNotifierItem Support* extension. anidash still runs without it; open it from the app menu.
+- **"Nyaa unreachable" / 429 in the log:** your ISP blocks Nyaa, or you're on a VPN exit IP. Set a mirror in Settings → *Nyaa base URL*.
+- **qBittorrent "banned 127.0.0.1":** too many failed logins. Restart qBittorrent, then fix the login in Settings.
+- **Keyring errors right after login:** your wallet unlocked late. anidash retries on the next job.
+
+## Security
+
+- Listens on `127.0.0.1` only and checks the `Host` header against DNS rebinding.
+- Every API call that changes something needs a per-start random token (injected into the dashboard page, and in `runtime.json` with mode 600 for the CLI) and a same-origin request.
+- VLC, qBittorrent and the Trash are called with argument lists, never a shell. Downloaded files are never executed; only `.mkv`/`.mp4` are accepted.
+- The qBittorrent Web UI is configured for `127.0.0.1` with localhost authentication **on**.
 
 ## Development
 
+```bash
+git clone https://github.com/rafaefarrukh/anidash && cd anidash
+python -m venv --system-site-packages .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+pytest -q                       # the integration test runs when qbittorrent-nox is installed
+anidash service --no-tray       # then open http://127.0.0.1:8787
 ```
-anidash/        Python service: api.py (FastAPI), scheduler.py + jobs.py, anilist.py, nyaa.py,
-                qbit.py, parser.py, db.py (SQLite), vault.py (keyring), cli.py, desktop.py
-Dashboard.dc.html, support.js, _ds/   Front-end served by the service
-systemd/        User service and the catch-up timer
-tests/          Parser tests
-Outline.md      Design notes and architecture
-Wireframes.dc.html   UI wireframes
-```
+The dashboard is `src/anidash/web/Dashboard.dc.html`. Opened as a plain file (no service), it shows demo data.
 
-To hack on it without installing, create a venv with `--system-site-packages` (so `python-gobject` is visible), `pip install -r requirements.txt`, then run `python -m anidash serve` (service only) or `python -m anidash window` (desktop window). See `Outline.md` for the design and data model.
+Windows build: `python packaging/windows/make_version.py && pyinstaller packaging/windows/anidash.spec`, then `iscc packaging\windows\anidash.iss`. CI does this on every tag.
 
-## Uninstall
+## License
 
-`./uninstall.sh` removes the app, units and launcher but keeps your library, database and config. `./uninstall.sh --purge` also deletes the database, config and keyring entries. `~/Anime` is never touched.
+MIT. Bundles React (MIT) and the Archivo font (SIL OFL 1.1).

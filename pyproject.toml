@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anidash"
+dynamic = ["version"]
+description = "Follow your AniList Watching list: new episodes are found on Nyaa, downloaded with qBittorrent, named, and synced back."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Muhammad Rafae Farrukh" }]
+keywords = ["anime", "anilist", "nyaa", "qbittorrent", "automation"]
+classifiers = [
+  "Environment :: X11 Applications :: GTK",
+  "Environment :: Win32 (MS Windows)",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Video",
+]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30",
+  "apscheduler>=3.10,<4",
+  "httpx>=0.27",
+  "qbittorrent-api>=2024.9",
+  "keyring>=25",
+  "platformdirs>=4.2",
+  "send2trash>=1.8.3",
+  "psutil>=5.9",
+  "pystray>=0.19",
+  "pillow>=10",
+  "pywebview>=5.1",
+]
+
+[project.optional-dependencies]
+# Linux window backend. pip can't build PyGObject without system headers, so the default is
+# to use the distro's python-gobject + webkit2gtk (pipx install --system-site-packages).
+# This extra is the fully-pip alternative.
+qt = ["pywebview[qt]>=5.1"]
+dev = ["pytest>=8", "pytest-timeout>=2"]
+
+[project.scripts]
+anidash-cli = "anidash.cli:main"
+
+[project.gui-scripts]
+anidash = "anidash.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rafaefarrukh/anidash"
+Issues = "https://github.com/rafaefarrukh/anidash/issues"
+
+[tool.hatch.version]
+path = "src/anidash/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anidash"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "packaging", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 60
