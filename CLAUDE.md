@@ -5,7 +5,7 @@ anidash follows the user's AniList *Watching* list, finds new episodes on Nyaa, 
 **Current work:** making it a low-friction Windows app (Linux stays supported). The phased plan, decisions and per-phase status live in `docs/PLAN.md`. Read it before starting; tick your phase's checklist there as you go.
 
 ## Layout
-- `src/anidash/` — the package. `service.py` (process entry: API thread + scheduler + tray), `api.py` (FastAPI, all endpoints), `jobs.py` (poll/finish/purge logic), `engine.py` (download engine: built-in libtorrent or qBittorrent; jobs/api only use `engine.get()`), `qbit.py` + `qbit_setup.py` (the optional qBittorrent backend), `files.py` (naming, path confinement, moves, trash), `storage.py` (library classification: local/removable/network/cloud), `player.py`, `paths.py` (platformdirs), `vault.py` (keyring), `autostart.py`, `desktop.py` (pywebview window, separate process), `db.py` (SQLite + migrations via `PRAGMA user_version`).
+- `src/anidash/` — the package. `service.py` (process entry: API thread + scheduler + tray), `api.py` (FastAPI, all endpoints), `jobs.py` (poll/finish/purge logic), `engine.py` (download engine: built-in libtorrent or qBittorrent; jobs/api only use `engine.get()`), `qbit.py` + `qbit_setup.py` (the optional qBittorrent backend), `files.py` (naming, path confinement, moves, trash), `storage.py` (library classification: local/removable/network/cloud), `player.py` (player choice/detection), `updates.py` (GitHub Releases check + verified Windows updater), `paths.py` (platformdirs), `vault.py` (keyring), `autostart.py`, `desktop.py` (pywebview window, separate process), `db.py` (SQLite + migrations via `PRAGMA user_version`).
 - `src/anidash/web/Dashboard.dc.html` — the whole UI: one HTML file, React (vendored) with JSX inside `<script type="text/x-dc">`, compiled in-browser by `support.js`. **No build step.** Opened as a plain file it shows demo data, so it can be checked with Playwright (Chromium is preinstalled; `require('playwright')` / `from playwright.sync_api import ...` if installed).
 - `packaging/windows/` — PyInstaller spec (onedir, windowed) + Inno Setup script (per-user, no admin). `packaging/arch/` — PKGBUILD.
 - `.github/workflows/ci.yml` — pytest on Ubuntu + Windows × Py 3.11/3.13, then a frozen-exe build and smoke test on Windows. Runs on pushes to `claude/**` branches and on PRs.
@@ -25,7 +25,7 @@ This container is Linux. Windows-only code (`winreg`, `os.startfile`, `msvcrt`, 
 
 ## Invariants (don't break these)
 - Listen on 127.0.0.1 only; mutating API calls need the per-start token + same origin; Host header checked.
-- Never run a shell: subprocess with argument lists only. Never execute downloaded files; only `.mkv`/`.mp4`.
+- Never run a shell: subprocess with argument lists only. Never execute downloaded files (torrents yield only `.mkv`/`.mp4`). The one exception is the updater: this repo's own release `setup.exe`, verified against that release's `SHA256SUMS.txt` (`updates.py`).
 - Nothing is deleted outright: deletions go to the OS trash, or where the library's volume has none (network/cloud) to `<library>/.anidash-trash/<date>/`, and only inside the library (`files.confine`). The one permanent delete is `files.empty_managed_trash` (dated folders in `.anidash-trash` older than `managed_trash_days`; 0 = never), confined to that folder.
 - Moves/trashing go through `jobs.file_op`: a file in use (Windows) waits in `pending_op` and is retried each poll; it never fails an episode.
 - File names are Windows-safe on every OS (`files.sanitize`).

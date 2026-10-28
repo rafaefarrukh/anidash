@@ -1,14 +1,25 @@
 # Changelog
 
-## 2.0.0rc1 — unreleased
+## 2.0.0 — unreleased
 
-Release plumbing for the Windows app.
+v2 makes anidash installable by other people, on Linux and Windows.
 
-- AniList login works out of the box with the built-in public client (ID 55203). Setup only asks for a client ID under *Use my own client*.
-- Windows: the runtime folder (lock + `runtime.json`) moved from `%TEMP%` to `%LOCALAPPDATA%\anidash\run`, so Storage Sense can't delete it while anidash runs.
-- Hidden `anidash selftest [out.json]` checks the window, tray, keyring and trash backends; CI and releases run it on the frozen exe. The PyInstaller spec now bundles pythonnet/clr_loader.
-- Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
-- Ruff config in `pyproject.toml` and a lint job in CI.
+### New
+- **Windows 10/11** support: per-user installer (no admin; installs WebView2 if missing), Recycle Bin, Credential Manager, players found in Program Files/registry.
+- **Packaging:** pipx (`anidash` on PyPI), AUR PKGBUILD, Windows installer (PyInstaller + Inno Setup), GitHub Actions CI on Linux + Windows.
+- **Tray icon** (open, check now, pause, quit) replaces the systemd service; **start at login** via XDG autostart / the Run key. `anidash install-systemd` remains for headless boxes.
+- **First-run setup in the app** (was a terminal wizard):
+  - AniList login in a child window with the token captured automatically (no copy-paste). A built-in public client ID can be shipped; users can still use their own.
+  - qBittorrent auto-setup: finds the install (native, nox, Flatpak, Windows), enables the Web UI on 127.0.0.1 with a random PBKDF2 login, backs up the config, restarts qBittorrent.
+  - Optional VPN interface binding (kill switch).
+- **Backlog handling:** tracking mid-season skips episodes up to your AniList progress and fetches the aired rest; their give-up clock starts when you track.
+- Pause automation; quit from the dashboard; secrets fall back to a mode-600 file when there is no keyring.
+- Falls back to the browser when no webview backend exists (see *Player choice* for players).
+
+### Updates
+- anidash checks GitHub Releases once a month (Settings → *Check for updates*: monthly / off) and on *Check now*; a banner names the new version. Pre-releases are only offered to people running one.
+- Windows: *Update now* downloads the new installer, checks it against the release's `SHA256SUMS.txt`, installs it silently and restarts anidash. Linux shows the command (`pipx upgrade anidash` or `paru -Syu anidash`).
+- Code signing policy and privacy policy: [docs/code-signing-policy.md](docs/code-signing-policy.md). winget manifest templates in `packaging/winget/`.
 
 ### Player choice
 
@@ -44,21 +55,12 @@ Release plumbing for the Windows app.
 - New CLI: `anidash forget --yes` (delete saved logins and the window profile) and `anidash quit --wait`.
 - CI builds the installer on every push and installs, upgrades and uninstalls it silently on Windows.
 
-## 2.0.0 — unreleased
-
-v2 makes anidash installable by other people, on Linux and Windows.
-
-### New
-- **Windows 10/11** support: per-user installer, Recycle Bin, Credential Manager, VLC found in Program Files/registry.
-- **Packaging:** pipx (`anidash` on PyPI), AUR PKGBUILD, Windows installer (PyInstaller + Inno Setup), GitHub Actions CI on Linux + Windows.
-- **Tray icon** (open, check now, pause, quit) replaces the systemd service; **start at login** via XDG autostart / the Run key. `anidash install-systemd` remains for headless boxes.
-- **First-run setup in the app** (was a terminal wizard):
-  - AniList login in a child window with the token captured automatically (no copy-paste). A built-in public client ID can be shipped; users can still use their own.
-  - qBittorrent auto-setup: finds the install (native, nox, Flatpak, Windows), enables the Web UI on 127.0.0.1 with a random PBKDF2 login, backs up the config, restarts qBittorrent.
-  - Optional VPN interface binding (kill switch).
-- **Backlog handling:** tracking mid-season skips episodes up to your AniList progress and fetches the aired rest; their give-up clock starts when you track.
-- Pause automation; quit from the dashboard; secrets fall back to a mode-600 file when there is no keyring.
-- Falls back to the system's default player when VLC is missing; falls back to the browser when no webview backend exists.
+### Release plumbing
+- AniList login works out of the box with the built-in public client (ID 55203). Setup only asks for a client ID under *Use my own client*.
+- Windows: the runtime folder (lock + `runtime.json`) moved from `%TEMP%` to `%LOCALAPPDATA%\anidash\run`, so Storage Sense can't delete it while anidash runs.
+- Hidden `anidash selftest [out.json]` checks the window, tray, keyring and trash backends; CI and releases run it on the frozen exe. The PyInstaller spec now bundles pythonnet/clr_loader.
+- Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
+- Ruff config in `pyproject.toml` and a lint job in CI.
 
 ### Fixed (v1 issues)
 - Tracking mid-season no longer marks old episodes failed or re-downloads watched ones.

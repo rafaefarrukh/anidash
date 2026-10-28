@@ -106,6 +106,10 @@ SETTING_DEFAULTS = {
     "bt_interface": "",              # built-in engine: bind to this interface (VPN kill switch); empty: any
     "qbit_url": "http://127.0.0.1:8080",
     "qbit_username": "anidash",
+    "update_check": "monthly",       # monthly | off (updates.check); "Check now" works either way
+    "update_checked_at": 0,
+    "update_latest": None,           # the newest release found: {version, url, published, setup, sums}
+    "update_dismissed": "",          # a version whose banner was dismissed
     "player": "auto",                # auto | default | vlc | mpv | mpc-hc | mpc-be | custom (player.CHOICES)
     "player_path": "",               # custom player's executable
     "player_args": "",               # custom player's arguments; "{file}" marks where the file goes, else it's last

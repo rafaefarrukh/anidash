@@ -87,4 +87,7 @@ jobs:
         with:
           files: out/*
           generate_release_notes: true
+          body: |
+            Windows: the `anidash-…-setup.exe` asset below (per-user, no admin). Linux: see the README (pipx or AUR). Verify downloads with `SHA256SUMS.txt`.
+            [Code signing policy](https://github.com/rafaefarrukh/anidash/blob/main/docs/code-signing-policy.md)
           prerelease: ${{ contains(github.ref_name, 'rc') }}

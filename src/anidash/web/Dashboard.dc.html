@@ -302,6 +302,7 @@
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;padding:18px 24px">
 <div class="field"><label>Start at login</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:8px 0"><input type="checkbox" checked="{{ st.autostart }}" onChange="{{ sfb.autostart }}" style="width:16px;height:16px;accent-color:var(--color-text);margin:0"></input>Run anidash in the tray when I log in</label></div>
 <div class="field"><label>Version</label><div style="font-size:14px;padding:8px 0">{{ versionText }}</div></div>
+<div class="field"><label>Check for updates</label><div style="display:flex;align-items:center;gap:8px"><select class="input" value="{{ st.update_check }}" onChange="{{ sf.update_check }}"><option value="monthly">Monthly</option><option value="off">Off</option></select><button class="btn btn-ghost" onClick="{{ checkUpdates }}" style="white-space:nowrap;flex:none">Check now</button></div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ updateText }}</div></div>
 <div class="field"><label>Data and logs</label><div style="font-size:12px;padding:8px 0;word-break:break-all">{{ dirsText }}</div></div>
 <div class="field"><label>Background service</label><div style="display:flex;gap:8px"><button class="btn btn-secondary" onClick="{{ togglePause }}" style="white-space:nowrap;flex:none">{{ pauseLabel }}</button><button class="btn btn-ghost" onClick="{{ quitApp }}" style="white-space:nowrap;flex:none">Quit anidash</button></div></div>
 
@@ -391,7 +392,7 @@ function demoData() {
       { ts: now - 7 * HOUR, level: 'info', message: 'Schedule synced · 3 shows, 4 upcoming episodes' },
       { ts: now - 11 * HOUR, level: 'info', message: 'Title Bravo – 04 downloaded · AniList progress → 4' }
     ],
-    settings: { library_path: '~/Videos/Anime', managed_trash_days: 14, retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', player: 'auto', player_path: '', player_args: '', anilist_client_id: '', autostart: true },
+    settings: { library_path: '~/Videos/Anime', managed_trash_days: 14, retention_days: 30, fallback_hours: 24, poll_minutes: 20, give_up_days: 7, backlog: true, nyaa_base: 'https://nyaa.si', engine: 'builtin', qbit_url: 'http://127.0.0.1:8080', qbit_username: 'anidash', player: 'auto', player_path: '', player_args: '', update_check: 'monthly', anilist_client_id: '', autostart: true },
     account: { user: 'you', token_expires: now + 351 * DAY, score_format: 'POINT_100', disk_used: 7.1e9, disk_free: 412e9, secrets: 'Secret Service', secrets_in_file: false, version: '2.0.0 (demo)', data_dir: '~/.local/share/anidash', log_dir: '~/.local/state/anidash/log' },
     health: { app: 'anidash', version: 'demo', setup_done: true, v1_conflict: false, paused: false, no_webview: false }
   };
@@ -504,7 +505,7 @@ class Component extends DCLogic {
     history.replaceState(null, '', '#' + page); this.setState({ page });
     if (page === 'setup') this.loadSetup();
     if (page === 'settings' && this.state.live && !this.state.ifaces) this.loadIfaces();
-    if (page === 'settings' && this.state.live) this.loadPlayers();
+    if (page === 'settings' && this.state.live) { this.loadPlayers(); this.api('GET', '/api/update').then(upd => this.setState({ upd })).catch(() => {}); }
   }
   shiftSeason(dir) {
     let i = SEASONS.indexOf(this.state.season) + dir, y = this.state.year;
@@ -546,6 +547,19 @@ class Component extends DCLogic {
       if (r.hint) this.setState({ playerHint: true });
     } catch (e) { this.say('Failed: ' + e.message); }
   }
+  async checkUpdates() {
+    if (!this.state.live) return this.say('Up to date (demo)');
+    this.say('Checking GitHub…');
+    try { const u = await this.api('POST', '/api/update/check'); this.setState({ upd: u }); await this.load(true); this.say(u.available ? `anidash ${u.available.version} is available` : 'anidash is up to date'); }
+    catch (e) { this.say('Failed: ' + e.message); }
+  }
+  async installUpdate() {
+    if (!window.confirm('Download the new version, check it against the release checksums and install it? anidash closes and starts again by itself.')) return;
+    this.say('Downloading the update…');
+    try { await this.api('POST', '/api/update/install', null, 300000); this.say('Installing · anidash restarts in a moment'); }
+    catch (e) { this.say('Failed: ' + e.message); }
+  }
+  dismissUpdate() { this.run(() => this.api('POST', '/api/update/dismiss'), () => this.setState(s => ({ health: { ...s.health, update: null } })), ''); }
   async loadPlayers() {
     try { this.setState({ players: await this.api('GET', '/api/player') }); } catch (e) { this.setState({ players: null }); }
   }
@@ -693,6 +707,11 @@ class Component extends DCLogic {
     else if (S.live && H.v1_conflict) banner = { tag: 'v1 still running', text: 'The old anidash v1 service is still active, so automation is paused to avoid duplicate downloads. Run: systemctl --user disable --now anidash.service anidash-kick.timer — then restart anidash.' };
     else if (S.live && H.paused) banner = { tag: 'Paused', text: 'Automation is paused. Nothing is searched or downloaded until you resume.', act: 'Resume', fn: () => this.togglePause() };
     else if (S.live && H.down) banner = { tag: 'Offline', text: 'anidash is not running. Start it from your app menu.' };
+    else if (S.live && H.update) banner = H.update.how.kind === 'installer'
+      ? { tag: `Update ${H.update.version}`, text: `anidash ${H.update.version} is available (you have ${H.version}). Updating downloads the installer from GitHub, checks it against the release checksums, installs it and restarts anidash.`,
+          act: 'Update now', fn: () => this.installUpdate(), act2: 'Not now', fn2: () => this.dismissUpdate() }
+      : { tag: `Update ${H.update.version}`, text: `anidash ${H.update.version} is available (you have ${H.version}). Update with: ${H.update.how.command}`,
+          act: 'Release notes', fn: () => this.openExternal(H.update.url), act2: 'Dismiss', fn2: () => this.dismissUpdate() };
     else if (S.playerHint) banner = { tag: 'Subtitles', text: "Windows' built-in player often shows anime subtitles (typesetting, signs, karaoke) incorrectly. VLC shows them properly and is free.",
       act: 'Install VLC', fn: () => this.installVlc(), act2: 'Dismiss', fn2: () => this.dismissPlayerHint() };
     else if (S.live && H.no_webview) banner = { tag: 'Opened in your browser', text: 'The anidash window needs the Microsoft Edge WebView2 Runtime, which isn\'t installed. Everything works here in the browser, but AniList login means pasting a token. Install WebView2 (free, from Microsoft), then reopen anidash to get the window and one-click AniList login.',
@@ -741,7 +760,7 @@ class Component extends DCLogic {
     const levels = [['all', 'All'], ['warn', 'Warn'], ['error', 'Error']].map(([k, label]) => ({ label, pick: () => this.setState({ level: k }), bg: S.level === k ? 'var(--color-text)' : 'transparent', fg: S.level === k ? 'var(--color-bg)' : 'var(--color-text)' }));
 
     const sf = {}, sfb = {};
-    ['library_path', 'managed_trash_days', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'player', 'player_path', 'player_args', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); if (k === 'library_path') this.checkLib(v); });
+    ['library_path', 'managed_trash_days', 'retention_days', 'fallback_hours', 'poll_minutes', 'give_up_days', 'nyaa_base', 'engine', 'qbit_url', 'qbit_username', 'player', 'player_path', 'player_args', 'update_check', 'anilist_client_id'].forEach(k => sf[k] = e => { const v = e.target.value; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); if (k === 'library_path') this.checkLib(v); });
     ['backlog', 'autostart'].forEach(k => sfb[k] = e => { const v = e.target.checked; this.setState(s => ({ sDraft: { ...s.sDraft, [k]: v, _dirty: true } })); });
     const ac = S.account || {}, expDays = ac.token_expires ? Math.ceil((ac.token_expires - now) / DAY) : null;
 
@@ -825,7 +844,9 @@ class Component extends DCLogic {
       reconnect: () => this.reconnect(), reconnectLabel: ac.user ? 'Reconnect' : 'Connect',
       secretsText: ac.secrets_in_file ? `No system keyring found · secrets are in a private file: ${ac.secrets}` : `System keyring · ${ac.secrets || '—'}`,
       secretsColor: ac.secrets_in_file ? 'var(--color-accent-700)' : 'var(--color-text)',
-      versionText: ac.version || H.version || '—', dirsText: ac.data_dir ? `${ac.data_dir} · logs: ${ac.log_dir}` : '—',
+      versionText: ac.version || H.version || '—', checkUpdates: () => this.checkUpdates(),
+      updateText: !S.upd ? (S.live ? '' : 'Checks GitHub Releases once a month (demo)') : S.upd.available ? `${S.upd.available.version} is available · ${S.upd.available.url}`
+        : `${S.upd.checked_at ? 'Up to date · last checked ' + new Date(S.upd.checked_at).toLocaleDateString() : 'Not checked yet'}${S.upd.how.command ? ' · update with: ' + S.upd.how.command : ''}`, dirsText: ac.data_dir ? `${ac.data_dir} · logs: ${ac.log_dir}` : '—',
       pauseLabel: H.paused ? 'Resume automation' : 'Pause automation', togglePause: () => this.togglePause(), quitApp: () => this.quitApp(),
       su: suv, finishSetup: () => this.finishSetup(),
       hasDialog: !!dlg, dlg: dlg || {}, closeDialog: () => this.setState({ dialog: null }),

@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+PackageIdentifier: RafaeFarrukh.anidash
+PackageVersion: {version}
+InstallerType: inno
+Scope: user
+InstallModes:
+- interactive
+- silent
+UpgradeBehavior: install
+ReleaseDate: {date}
+Installers:
+- Architecture: x64
+  InstallerUrl: {installer_url}
+  InstallerSha256: {sha256}
+ManifestType: installer
+ManifestVersion: 1.12.0
