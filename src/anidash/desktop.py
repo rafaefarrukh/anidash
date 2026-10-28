@@ -78,13 +78,20 @@ class Bridge:
         return {"error": "AniList window closed before login finished"}
 
 
-def _raise_loop(win, info):
-    seen = None
+def _raise_loop(win, info, gone_after: int = 30):
+    seen, misses = None, 0
     while True:
         time.sleep(1)
         try:
             seq = httpx.get(f"http://127.0.0.1:{info['port']}/api/ui/seq", timeout=2).json()["seq"]
+            misses = 0
         except Exception:
+            misses += 1
+            if misses >= gone_after:  # the service died without closing us (crash, kill): don't linger holding files
+                log.warning("anidash service is gone; closing the window")
+                with contextlib.suppress(Exception):
+                    win.destroy()
+                return
             continue
         if seen is not None and seq != seen:
             try:

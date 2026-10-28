@@ -42,6 +42,10 @@ def open_window() -> None:
 def close_window() -> None:
     if window_open():
         _proc.terminate()
+        try:  # don't exit before it does: an installer waiting on us would find its files still in use
+            _proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            log.warning("dashboard window did not exit")
 
 
 def request_quit() -> None:

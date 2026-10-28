@@ -4,6 +4,7 @@ import json
 import sys
 import types
 
+import psutil
 import pytest
 
 from anidash import cli, db, desktop, paths, runtime, vault
@@ -110,25 +111,58 @@ def test_forget_keeps_data_folder_when_library_is_inside(home, monkeypatch):
     assert cli.forget() == 3
 
 
+class FakeProc:
+    """psutil.Process stand-in: `alive` says whether wait() times out."""
+    def __init__(self, alive):
+        self.alive = alive
+
+    def wait(self, timeout=None):
+        if self.alive:
+            raise psutil.TimeoutExpired(timeout)
+
+
 def test_forget_stops_the_running_instance_first(home, monkeypatch):
-    info = {"port": 8799, "token": "x"}
+    info = {"port": 8799, "token": "x", "pid": 4242}
     state = {"up": True}
     monkeypatch.setattr(vault.keyring, "delete_password", lambda *a: None)
     monkeypatch.setattr(runtime, "running", lambda: info if state["up"] else None)
     monkeypatch.setattr(runtime, "call", lambda *a, **k: state.update(up=False))
-    monkeypatch.setattr(runtime, "probe", lambda port, timeout=1.0: {"app": "anidash"} if state["up"] else None)
+    monkeypatch.setattr(psutil, "Process", lambda pid: FakeProc(alive=False))
     assert cli.forget() == 0 and state["up"] is False
 
 
-def test_quit_wait_exit_codes(monkeypatch):
-    info = {"port": 8799, "token": "x"}
+def test_quit_wait_waits_for_the_process(monkeypatch):
+    info = {"port": 8799, "token": "x", "pid": 4242}
     monkeypatch.setattr(runtime, "running", lambda: None)
     assert cli.quit_running(wait=True) == 1 and cli.quit_running() == 0
     monkeypatch.setattr(runtime, "running", lambda: info)
     monkeypatch.setattr(runtime, "call", lambda *a, **k: None)
-    alive = iter([True, True, False])
-    monkeypatch.setattr(runtime, "probe", lambda port, timeout=1.0: next(alive))
-    monkeypatch.setattr(cli.time, "sleep", lambda s: None)
-    assert cli.quit_running(wait=True) == 0
-    monkeypatch.setattr(runtime, "probe", lambda port, timeout=1.0: True)  # never exits
+    waited = []
+    monkeypatch.setattr(psutil, "Process", lambda pid: waited.append(pid) or FakeProc(alive=False))
+    assert cli.quit_running(wait=True) == 0 and waited == [4242]
+    monkeypatch.setattr(psutil, "Process", lambda pid: FakeProc(alive=True))  # never exits
     assert cli.quit_running(wait=True, timeout=0) == 2
+
+    def gone(pid):
+        raise psutil.NoSuchProcess(pid)
+    monkeypatch.setattr(psutil, "Process", gone)  # already exited
+    assert cli.quit_running(wait=True) == 0
+
+
+def test_orphaned_window_closes_itself(monkeypatch):
+    destroyed = []
+    win = types.SimpleNamespace(destroy=lambda: destroyed.append(True))
+    monkeypatch.setattr(desktop.time, "sleep", lambda s: None)
+    monkeypatch.setattr(desktop.httpx, "get", lambda *a, **k: (_ for _ in ()).throw(OSError("refused")))
+    desktop._raise_loop(win, {"port": 8799}, gone_after=3)  # returns instead of polling forever
+    assert destroyed == [True]
+
+
+def test_close_window_waits_for_the_child(monkeypatch):
+    from anidash import ui
+    calls = []
+    proc = types.SimpleNamespace(poll=lambda: None, terminate=lambda: calls.append("terminate"),
+                                 wait=lambda timeout: calls.append(("wait", timeout)))
+    monkeypatch.setattr(ui, "_proc", proc)
+    ui.close_window()
+    assert calls == ["terminate", ("wait", 5)]

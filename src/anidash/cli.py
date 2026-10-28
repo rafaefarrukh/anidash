@@ -11,7 +11,6 @@ anidash --version
 import json
 import shutil
 import sys
-import time
 from pathlib import Path
 
 from . import __version__
@@ -68,11 +67,14 @@ def quit_running(wait: bool = False, timeout: float = 15) -> int:
         return 1 if wait else 0
     runtime.call("POST", "/api/app/quit", info)
     print("stopping")
-    deadline = time.monotonic() + timeout
-    while wait and runtime.probe(info["port"], timeout=0.5):
-        if time.monotonic() > deadline:
+    if wait:  # the process, not the port: it closes its server a few seconds before it exits and unlocks its files
+        import psutil
+        try:
+            psutil.Process(info["pid"]).wait(timeout)
+        except psutil.TimeoutExpired:
             return 2
-        time.sleep(0.25)
+        except psutil.NoSuchProcess:
+            pass
     return 0
 
 
