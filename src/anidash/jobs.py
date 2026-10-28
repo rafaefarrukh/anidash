@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from . import anilist, db, files, nyaa, qbit, shows
+from . import anilist, db, engine, files, nyaa, shows
 from .parser import parse
 
 log = logging.getLogger("anidash.jobs")
@@ -172,7 +172,7 @@ def _poll_one(r, now: float, prefs, fb_h: float, title: str) -> None:
         db.event("error", f"{title} – {n:02d}: disk nearly full, skipped", mid, n)
         return
     folder = files.show_dir(r["display_title"])
-    qbit.add(it.infohash, it.title, str(folder), mid)
+    engine.get().add(it.infohash, it.title, str(folder), mid)
     db.x("""UPDATE episode SET state='queued', chosen_group=?, version=?, infohash=?, torrent_name=?, size_bytes=?, queued_at=?
             WHERE anilist_id=? AND number=?""", p.group, p.version, it.infohash, it.title, it.size, now, mid, n)
     note = f" · fell back to preference {rank}" if rank > 1 else ""
@@ -191,7 +191,7 @@ def _check_revisions() -> None:
         if not cands:
             continue
         _, _, _, it, p = cands[0]
-        qbit.add(it.infohash, it.title, str(files.show_dir(r["display_title"])), r["anilist_id"])
+        engine.get().add(it.infohash, it.title, str(files.show_dir(r["display_title"])), r["anilist_id"])
         db.x("""UPDATE episode SET replacing=1, old_hash=infohash, old_path=file_path, infohash=?, torrent_name=?, version=?,
                 replace_started=? WHERE anilist_id=? AND number=?""", it.infohash, it.title, p.version, time.time(),
              r["anilist_id"], r["number"])
@@ -214,8 +214,8 @@ def watch_downloads() -> None:
                    WHERE e.infohash IS NOT NULL AND (e.state IN ('queued','downloading') OR e.replacing=1)""")
     if not rows:
         return
-    c = qbit.client()
-    infos = {t.hash.lower(): t for t in c.torrents_info(category=qbit.CATEGORY)}
+    eng = engine.get()
+    infos = {t.hash: t for t in eng.torrents()}
     now = time.time()
     for r in rows:
         mid, n, title = r["anilist_id"], r["number"], r["title_en"] or r["title_romaji"]
@@ -227,15 +227,15 @@ def watch_downloads() -> None:
         if t is None:
             if now - (r["queued_at"] or now) > 10 * MIN and not r["replacing"]:
                 db.x("UPDATE episode SET state='searching', infohash=NULL WHERE anilist_id=? AND number=?", mid, n)
-                db.event("warn", f"{title} – {n:02d}: torrent vanished from qBittorrent, searching again", mid, n)
+                db.event("warn", f"{title} – {n:02d}: torrent vanished from the download engine, searching again", mid, n)
             continue
         if t.progress < 1 or t.amount_left > 0:
             if r["state"] == "queued" and t.progress > 0:
                 db.x("UPDATE episode SET state='downloading' WHERE anilist_id=? AND number=?", mid, n)
             continue
-        fl = c.torrents_files(torrent_hash=t.hash)
+        fl = t.files or eng.files(t.hash)
         if len(fl) != 1 or not files.is_video(fl[0].name):
-            qbit.remove(t.hash)
+            eng.remove(t.hash)
             db.x("UPDATE episode SET state='searching', infohash=NULL, replacing=0 WHERE anilist_id=? AND number=?", mid, n)
             db.event("error", f"{title} – {n:02d}: torrent was not a single .mkv/.mp4, discarded", mid, n)
             continue
@@ -245,11 +245,11 @@ def watch_downloads() -> None:
         if r["replacing"]:
             if r["old_hash"]:
                 with contextlib.suppress(Exception):
-                    qbit.remove(r["old_hash"])
+                    eng.remove(r["old_hash"])
             if r["old_path"]:
                 files.trash(Path(r["old_path"]))
         if src_name != final_name:
-            c.torrents_rename_file(torrent_hash=t.hash, old_path=src_name, new_path=final_name)
+            eng.rename_file(t.hash, src_name, final_name)
             for _ in range(20):
                 if (folder / final_name).exists():
                     break
@@ -261,9 +261,9 @@ def watch_downloads() -> None:
                 old_hash=NULL, old_path=NULL, replace_started=NULL WHERE anilist_id=? AND number=?""", str(final), size, now, now + ret * DAY, mid, n)
         try:  # don't seed: drop the torrent once the file is in place (files stay on disk)
             if final.exists():
-                qbit.remove(t.hash)
+                eng.remove(t.hash)
             else:  # rename still pending; removing now could abort it
-                c.torrents_stop(torrent_hashes=t.hash)
+                eng.stop(t.hash)
         except Exception as e:
             log.warning("could not remove finished torrent %s: %s", t.hash, e)
         if r["replacing"]:
@@ -273,11 +273,11 @@ def watch_downloads() -> None:
 
 
 def _abort_replacement(r, t) -> None:
-    """The v2 vanished from qBittorrent or never finished: keep v1, and never try that v2 again."""
+    """The v2 vanished from the engine or never finished: keep v1, and never try that v2 again."""
     mid, n = r["anilist_id"], r["number"]
     if t is not None:
         try:
-            qbit.remove(t.hash)
+            engine.get().remove(t.hash)
         except Exception as e:
             log.warning("could not remove stalled replacement %s: %s", t.hash, e)
     with db.tx() as c:
@@ -302,7 +302,7 @@ def purge() -> None:
     names = []
     for r in rows:
         try:
-            qbit.remove(r["infohash"])
+            engine.get().remove(r["infohash"])
         except Exception as e:
             log.warning("could not remove torrent %s: %s", r["infohash"], e)
         if r["file_path"]:
@@ -328,10 +328,10 @@ def cancel_episode(mid: int, n: int) -> bool:
                      FROM episode e JOIN anime a USING(anilist_id) WHERE e.anilist_id=? AND e.number=?""", mid, n)
         if not r or r["state"] not in ("queued", "downloading") or r["replacing"] or not r["infohash"]:
             return False
-        h, c = r["infohash"], qbit.client()
-        t = next(iter(c.torrents_info(torrent_hashes=h)), None)
-        partial = [Path(t.save_path) / f.name for f in c.torrents_files(torrent_hash=h)] if t else []
-        qbit.remove(h)
+        h, eng = r["infohash"], engine.get()
+        t = next((t for t in eng.torrents() if t.hash == h.lower()), None)
+        partial = [Path(t.save_path) / f.name for f in (t.files or eng.files(h))] if t else []
+        eng.remove(h)
         with db.tx() as x:
             x.execute("INSERT OR IGNORE INTO skipped VALUES(?,?,?)", (mid, n, h))
             x.execute("""UPDATE episode SET state='searching', infohash=NULL, chosen_group=NULL, version=NULL, torrent_name=NULL,

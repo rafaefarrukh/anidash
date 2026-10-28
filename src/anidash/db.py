@@ -61,7 +61,13 @@ def _m1(c: sqlite3.Connection) -> None:
             log.warning("could not read v1 config: %s", e)
 
 
-MIGRATIONS = [_m1]
+def _m2(c: sqlite3.Connection) -> None:
+    """Built-in torrent engine. Installs that already finished setup did it with qBittorrent: keep that."""
+    if c.execute("SELECT 1 FROM settings WHERE key='setup_done' AND value='true'").fetchone():
+        c.execute("INSERT OR IGNORE INTO settings VALUES('engine', '\"qbittorrent\"')")
+
+
+MIGRATIONS = [_m1, _m2]
 
 SETTING_DEFAULTS = {
     "library_path": "",              # filled with paths.default_library() on first read
@@ -71,6 +77,9 @@ SETTING_DEFAULTS = {
     "give_up_days": 7,
     "backlog": True,                 # fetch already-aired episodes past your AniList progress when tracking
     "nyaa_base": "https://nyaa.si",
+    "engine": "builtin",             # builtin (libtorrent) | qbittorrent
+    "bt_port": 0,                    # built-in engine's listen port; 0: pick a random high port once
+    "bt_interface": "",              # built-in engine: bind to this interface (VPN kill switch); empty: any
     "qbit_url": "http://127.0.0.1:8080",
     "qbit_username": "anidash",
     "vlc_path": "",                  # empty: find VLC automatically

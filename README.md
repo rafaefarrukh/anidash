@@ -1,6 +1,6 @@
 # anidash
 
-anidash follows your AniList **Watching** list. When a new episode airs, it finds the release you prefer on Nyaa, downloads it with qBittorrent, saves it as `<Library>/<Title>/<Title> - 05.mkv`, updates your AniList progress and moves the file to the Trash after 30 days. Watch with VLC, from the dashboard or however you like.
+anidash follows your AniList **Watching** list. When a new episode airs, it finds the release you prefer on Nyaa, downloads it with its built-in BitTorrent engine (or your qBittorrent, if you prefer), saves it as `<Library>/<Title>/<Title> - 05.mkv`, updates your AniList progress and moves the file to the Trash after 30 days. Watch with VLC, from the dashboard or however you like.
 
 It runs on **Linux** (any desktop; headless works too) and **Windows 10/11**. Everything stays on your computer: the dashboard is served on `127.0.0.1` only.
 
@@ -9,7 +9,7 @@ It runs on **Linux** (any desktop; headless works too) and **Windows 10/11**. Ev
 ## Install
 
 ### Windows
-Download `anidash-x.y.z-setup.exe` from [Releases](https://github.com/rafaefarrukh/anidash/releases) and run it. No admin rights are needed. Install [qBittorrent](https://www.qbittorrent.org/download) too (`winget install qBittorrent.qBittorrent`), and optionally VLC.
+Download `anidash-x.y.z-setup.exe` from [Releases](https://github.com/rafaefarrukh/anidash/releases) and run it. No admin rights are needed, and nothing else is required; VLC is recommended for playback.
 
 ### Arch / EndeavourOS / Manjaro
 ```bash
@@ -21,9 +21,9 @@ The window uses your distro's WebKitGTK, so install that first, then anidash wit
 
 | Distro | System packages |
 |---|---|
-| Arch | `sudo pacman -S python-gobject webkit2gtk-4.1 libayatana-appindicator python-pipx qbittorrent` |
-| Debian / Ubuntu / Mint | `sudo apt install python3-gi gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 pipx qbittorrent` |
-| Fedora | `sudo dnf install python3-gobject webkit2gtk4.1 libayatana-appindicator-gtk3 pipx qbittorrent` |
+| Arch | `sudo pacman -S python-gobject webkit2gtk-4.1 libayatana-appindicator python-pipx` |
+| Debian / Ubuntu / Mint | `sudo apt install python3-gi gir1.2-webkit2-4.1 gir1.2-ayatanaappindicator3-0.1 pipx` |
+| Fedora | `sudo dnf install python3-gobject webkit2gtk4.1 libayatana-appindicator-gtk3 pipx` |
 
 ```bash
 pipx install --system-site-packages anidash
@@ -36,8 +36,8 @@ The first launch adds anidash to your app menu. No WebKitGTK? `pipx install "ani
 anidash opens a three-step setup:
 
 1. **AniList.** Press *Connect AniList*, approve anidash in the window that opens, and you're done. The token lasts a year; Settings warns you two weeks before it expires.
-2. **qBittorrent.** Quit qBittorrent, then press *Configure automatically*. anidash turns on qBittorrent's Web UI for this computer only, with a private random login, keeps a backup of qBittorrent's settings, and starts it again. Already use the Web UI (Sonarr, a phone app…)? Choose *I already have a Web UI login* instead, so your existing login keeps working.
-   - Optional: bind qBittorrent to your VPN interface. That's the kill switch: if the VPN drops, torrents stop instead of using your real IP. Keep the rest of the computer off the VPN if you can, because Nyaa blocks many VPN exit IPs.
+2. **Downloads.** *Built-in (recommended)* needs nothing: anidash downloads with its own BitTorrent engine (libtorrent, with DHT, peer exchange and encryption). Already run qBittorrent? Choose *Use my qBittorrent*: quit qBittorrent, then press *Configure automatically*. anidash turns on qBittorrent's Web UI for this computer only, with a private random login, keeps a backup of qBittorrent's settings, and starts it again. Already use the Web UI (Sonarr, a phone app…)? Choose *I already have a Web UI login* instead, so your existing login keeps working. You can switch later in Settings → Downloads.
+   - Optional, either way: bind downloads to your VPN interface. That's the kill switch: if the VPN drops, transfers stop instead of using your real IP, and they resume when it's back. Keep the rest of the computer off the VPN if you can, because Nyaa blocks many VPN exit IPs.
 3. **Library.** Pick the folder. Tick *Start at login* to keep anidash in the tray.
 
 Finishing imports the shows on your AniList Watching list.
@@ -57,7 +57,7 @@ Finishing imports the shows on your AniList Watching list.
 - If a v2 appears within 3 days, it replaces v1 (v1 goes to the Trash) and the 30-day clock restarts.
 - **Tracking mid-season:** episodes up to your AniList progress are never downloaded. Aired episodes after it are fetched once (turn this off in Settings → *Already-aired episodes*).
 - Nothing is deleted outright: purge and removal use the Trash / Recycle Bin, and only inside the library folder.
-- No seeding: a torrent is removed from qBittorrent as soon as its file is in place.
+- No seeding: a finished torrent is stopped at once and removed as soon as its file is in place.
 - File names are Windows-safe on every OS (`Re:Zero` → `ReZero`, `Title: Sub` → `Title - Sub`), so a library on a partition shared between Linux and Windows works from both.
 
 ## Where things are
@@ -66,7 +66,7 @@ Finishing imports the shows on your AniList Watching list.
 |---|---|---|
 | Database (settings, shows, episodes, log) | `~/.local/share/anidash/` | `%LOCALAPPDATA%\anidash\` |
 | Logs | `~/.local/state/anidash/log/` | `%LOCALAPPDATA%\anidash\Logs\` |
-| Secrets (AniList token, qBittorrent password) | system keyring (GNOME Keyring / KWallet) | Windows Credential Manager |
+| Secrets (AniList token; qBittorrent password if you use it) | system keyring (GNOME Keyring / KWallet) | Windows Credential Manager |
 | Library (default) | `~/Videos/Anime` | `Videos\Anime` |
 
 With no keyring at all (headless servers), secrets go to a private file in the config folder, and Settings says so.
@@ -115,7 +115,7 @@ rm -r ~/.local/share/anime-dl/app ~/.local/share/anime-dl/venv   # the old code;
 git clone https://github.com/rafaefarrukh/anidash && cd anidash
 python -m venv --system-site-packages .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-pytest -q                       # the integration test runs when qbittorrent-nox is installed
+pytest -q                       # includes an offline libtorrent download; the qBittorrent test runs when qbittorrent-nox is installed
 anidash service --no-tray       # then open http://127.0.0.1:8787
 ```
 The dashboard is `src/anidash/web/Dashboard.dc.html`. Opened as a plain file (no service), it shows demo data.

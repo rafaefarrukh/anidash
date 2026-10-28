@@ -53,8 +53,19 @@ def _trash() -> str:
     return send2trash.__module__
 
 
+def _libtorrent() -> str:
+    """The built-in engine: the extension loads (OpenSSL is linked in) and a session starts and stops."""
+    import libtorrent as lt
+    s = lt.session({"listen_interfaces": "127.0.0.1:0", "enable_dht": False, "enable_lsd": False,
+                    "enable_upnp": False, "enable_natpmp": False})
+    port = s.listen_port()
+    s.pause()
+    del s
+    return f"{lt.__version__} (listened on {port})"
+
+
 def _modules() -> str:
-    from . import api, desktop, service, tray  # noqa: F401
+    from . import api, desktop, engine, service, tray  # noqa: F401
     return "ok"
 
 
@@ -62,7 +73,7 @@ def _modules() -> str:
 # webview2 isn't required (users without it get the browser); CI requires it on its runners, which have it.
 CHECKS: dict[str, tuple[Callable[[], str], bool]] = {
     "window": (_window, IS_WIN), "webview2": (_webview2, False), "tray": (_tray, IS_WIN), "keyring": (_keyring, IS_WIN),
-    "send2trash": (_trash, True), "modules": (_modules, True)}
+    "send2trash": (_trash, True), "libtorrent": (_libtorrent, True), "modules": (_modules, True)}
 
 
 def run(out: str | None = None) -> int:

@@ -10,6 +10,15 @@ Release plumbing for the Windows app.
 - Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
 - Ruff config in `pyproject.toml` and a lint job in CI.
 
+### Built-in download engine
+
+- **No qBittorrent needed:** anidash now downloads with its own BitTorrent engine (libtorrent: DHT, peer exchange, local discovery, encryption). Setup step 2 is *Downloads*: *Built-in (recommended)* or *Use my qBittorrent* (the old flow, unchanged). Switch any time in Settings → Downloads.
+- Existing installs that finished setup keep using qBittorrent (database migration 2).
+- Same rules as before: no seeding (a finished torrent stops at once and is removed after the rename), v2 replacement and its timeouts, renaming into the library.
+- Torrents resume after a restart (resume data in the data folder).
+- VPN kill switch for the built-in engine: bind to an interface; if it goes down, transfers pause and never fall back to another connection.
+- `anidash selftest` starts and stops a libtorrent session; the Windows build bundles libtorrent.
+
 ### Windows installer & runtime
 
 - The installer installs the Microsoft Edge WebView2 Runtime when it is missing (Evergreen bootstrapper, per-user, no admin). If that fails it says so and anidash uses the browser.

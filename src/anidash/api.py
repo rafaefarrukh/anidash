@@ -24,6 +24,7 @@ from . import (
     anilist,
     autostart,
     db,
+    engine,
     files,
     jobs,
     nyaa,
@@ -151,7 +152,7 @@ def anime_view(a, now) -> dict:
     torrents = {}
     if any(e["state"] in ("downloading", "queued") for e in eps):
         with suppress(Exception):
-            torrents = {t.hash.lower(): t for t in qbit.client().torrents_info(category=qbit.CATEGORY)}
+            torrents = {t.hash: t for t in engine.get().torrents()}
     visible = []
     for e in eps:
         if e["state"] in ("deleted", "skipped") or not (e["airs_at"] and e["airs_at"] <= now or e["state"] != "scheduled"):
@@ -256,7 +257,7 @@ def remove(mid: int, body: Removal):
         raise HTTPException(502, str(e))
     hashes = [r["infohash"] for r in db.q("SELECT infohash FROM episode WHERE anilist_id=? AND infohash IS NOT NULL", mid)]
     try:
-        qbit.remove(hashes)
+        engine.get().remove(hashes)
     except Exception as e:
         db.event("warn", f"Could not remove torrents for {a['title_en']}: {e}", mid)
     folder = files.show_dir(a["display_title"])
@@ -333,14 +334,14 @@ def downloads():
               for r in db.q("""SELECT e.infohash, e.number, e.chosen_group, a.title_en, a.title_romaji FROM episode e
                                JOIN anime a USING(anilist_id) WHERE e.infohash IS NOT NULL AND (e.state IN ('queued','downloading') OR e.replacing=1)""")}
     try:
-        ts = qbit.client().torrents_info(category=qbit.CATEGORY)
+        ts = engine.get().torrents()
     except Exception:
         return []
     out = []
     for t in ts:
         if t.progress >= 1:
             continue
-        eta = t.eta if 0 <= t.eta < 8640000 else None
+        eta = t.eta
         out.append({"name": labels.get(t.hash.lower(), t.name), "progress": t.progress,
                     "speed": f"{t.dlspeed / 1e6:.1f} MB/s", "eta": f"{eta // 3600}:{eta % 3600 // 60:02d}" if eta is not None else "∞"})
     return out
@@ -378,7 +379,7 @@ def _bool(v) -> bool:
 
 
 EDITABLE = {"library_path": str, "retention_days": int, "fallback_hours": int, "poll_minutes": int, "give_up_days": int,
-            "backlog": _bool, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "vlc_path": str, "vlc_args": str,
+            "backlog": _bool, "engine": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "vlc_path": str, "vlc_args": str,
             "anilist_client_id": str}
 RANGES = {"retention_days": (1, 365), "fallback_hours": (0, 168), "poll_minutes": (5, 720), "give_up_days": (1, 60)}
 
@@ -409,6 +410,8 @@ def patch_settings(body: dict):
     for k in ("nyaa_base", "qbit_url"):
         if k in clean and not clean[k].startswith(("http://", "https://")):
             raise HTTPException(422, f"{k} must be an http(s) URL")
+    if "engine" in clean and clean["engine"] not in engine.ENGINES:
+        raise HTTPException(422, f"engine must be one of {', '.join(engine.ENGINES)}")
     if "anilist_client_id" in clean and clean["anilist_client_id"] and not clean["anilist_client_id"].isdigit():
         raise HTTPException(422, "AniList client ID is a number")
     if "library_path" in clean:
@@ -505,16 +508,16 @@ def set_token(body: TokenIn):
 @app.get("/api/setup")
 def setup_status():
     a = account()
-    qb = {"ok": False, "error": None, "version": None}
+    eng = db.setting("engine")
     try:
-        qb["version"] = qbit.client().app.version.lstrip("v")
-        qb["ok"] = True
-    except Exception as e:
-        qb["error"] = str(e) or type(e).__name__
+        dl = engine.get().health()
+    except Exception as e:  # libtorrent missing or the session failed to start
+        dl = {"ok": False, "version": None, "error": f"{type(e).__name__}: {e}"}
+    qb = dl if eng == "qbittorrent" else {"ok": False, "error": None, "version": None}
     lib = Path(db.setting("library_path"))
     return {"done": bool(db.setting("setup_done")), "anilist": {"ok": bool(a["user"]), "user": a["user"],
             "client_id": a["client_id"], "authorize_url": anilist.authorize_url()},
-            "qbit": qb, "library": {"path": str(lib), "writable": os.access(lib if lib.exists() else lib.parent, os.W_OK)},
+            "downloads": {"engine": eng, **dl}, "qbit": qb, "library": {"path": str(lib), "writable": os.access(lib if lib.exists() else lib.parent, os.W_OK)},
             "autostart": autostart.is_enabled(), "backlog": bool(db.setting("backlog"))}
 
 
@@ -548,7 +551,7 @@ def setup_qbit_auto(body: AutoQbit):
     except OSError as e:
         raise HTTPException(500, f"Could not write {inst.config}: {e}")
     vault.set("qbit_password", pw)
-    db.set_settings({"qbit_url": res["url"], "qbit_username": user})
+    db.set_settings({"qbit_url": res["url"], "qbit_username": user, "engine": "qbittorrent"})
     qbit.reset()
     started = qbit_setup.start(inst)
     version, err = None, None
@@ -565,26 +568,40 @@ def setup_qbit_auto(body: AutoQbit):
                                            "Start qBittorrent yourself, then press Test.")}
 
 
-@app.get("/api/setup/qbit/interfaces")
-def setup_qbit_interfaces():
+class EngineIn(BaseModel):
+    engine: str
+
+
+@app.post("/api/setup/engine")
+def setup_engine(body: EngineIn):
+    if body.engine not in engine.ENGINES:
+        raise HTTPException(422, "unknown engine")
+    db.set_settings({"engine": body.engine})
+    db.event("info", "Downloads: " + ("built-in engine" if body.engine == "builtin" else "your qBittorrent"))
+    return engine.get().health()
+
+
+@app.get("/api/engine/interfaces")
+def engine_interfaces():
     try:
-        return qbit.interfaces()
+        return {"engine": db.setting("engine"), **engine.get().interfaces()}
     except Exception as e:
         raise HTTPException(502, str(e))
 
 
-@app.post("/api/setup/qbit/interface")
-def setup_qbit_interface(body: dict):
+@app.post("/api/engine/interface")
+def engine_interface(body: dict):
     value = str(body.get("value", ""))
+    eng = engine.get()
     try:
-        if value and value not in {i["value"] for i in qbit.interfaces()["list"]}:
+        if value and value not in {i["value"] for i in eng.interfaces()["list"]}:
             raise HTTPException(422, "unknown interface")
-        qbit.bind_interface(value)
+        eng.bind_interface(value)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(502, str(e))
-    db.event("info", f"qBittorrent bound to {value or 'any interface'}")
+    db.event("info", f"{'qBittorrent' if eng.name == 'qbittorrent' else 'Downloads'} bound to {value or 'any interface'}")
     return {"ok": True}
 
 

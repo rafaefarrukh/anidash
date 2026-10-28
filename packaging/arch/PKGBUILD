@@ -12,6 +12,7 @@ depends=(
   'python>=3.11'
   'python-fastapi' 'uvicorn' 'python-apscheduler' 'python-httpx' 'python-keyring' 'python-platformdirs'
   'python-send2trash' 'python-psutil' 'python-pillow'
+  'libtorrent-rasterbar'    # the built-in download engine (includes the Python bindings)
   'python-gobject' 'webkit2gtk-4.1' 'libayatana-appindicator'
   'python-pywebview'        # AUR
   'python-pystray'          # AUR
@@ -20,8 +21,8 @@ depends=(
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 checkdepends=('python-pytest')
 optdepends=(
-  'qbittorrent: torrent client (desktop)'
-  'qbittorrent-nox: torrent client (headless)'
+  'qbittorrent: optional download backend instead of the built-in engine (desktop)'
+  'qbittorrent-nox: optional download backend instead of the built-in engine (headless)'
   'vlc: preferred player (otherwise the default video player is used)'
   'gnome-shell-extension-appindicator: tray icon on GNOME'
 )

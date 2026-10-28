@@ -24,3 +24,53 @@ def home(tmp_path, monkeypatch):
     db.set_settings({"library_path": str(lib)})
     yield tmp_path
     db.close()
+
+
+class FakeEngine:
+    """Stands in for the download engine; tests fill `items` (engine.Torrent) and read what was done."""
+    name = "builtin"
+
+    def __init__(self):
+        self.items, self.added, self.removed, self.stopped, self.renamed = [], [], [], [], []
+        self.on_rename = None
+
+    def add(self, infohash, name, save_path, anilist_id):
+        self.added.append((infohash, name, save_path))
+
+    def torrents(self):
+        return list(self.items)
+
+    def files(self, infohash):
+        return next((t.files for t in self.items if t.hash == infohash.lower()), [])
+
+    def rename_file(self, infohash, old, new):
+        self.renamed.append(new)
+        if self.on_rename:
+            self.on_rename(old, new)
+
+    def stop(self, infohash):
+        self.stopped.append(infohash)
+
+    def remove(self, hashes):
+        self.removed.extend([hashes] if isinstance(hashes, str) else hashes)
+
+    def interfaces(self):
+        return {"current": "", "list": [{"name": "wg0 (10.2.0.2)", "value": "wg0"}], "bypass_local_auth": False}
+
+    def bind_interface(self, value):
+        self.bound = value
+
+    def health(self):
+        return {"ok": True, "version": "fake", "error": None}
+
+    def close(self):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def fake_engine(monkeypatch):
+    """No test starts a real torrent session (or touches the network) unless it builds one itself."""
+    from anidash import engine
+    fe = FakeEngine()
+    monkeypatch.setattr(engine, "get", lambda: fe)
+    return fe

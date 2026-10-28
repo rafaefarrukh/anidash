@@ -55,7 +55,8 @@ def test_settings_validation(client):
 
 def test_setup_status_shape(client):
     s = client.get("/api/setup").json()
-    assert set(s) >= {"done", "anilist", "qbit", "library", "autostart", "backlog"}
+    assert set(s) >= {"done", "anilist", "downloads", "qbit", "library", "autostart", "backlog"}
+    assert s["downloads"] == {"engine": "builtin", "ok": True, "version": "fake", "error": None}
     assert s["qbit"]["ok"] is False and s["library"]["writable"] is True
 
 

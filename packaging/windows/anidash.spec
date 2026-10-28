@@ -9,7 +9,7 @@ hidden = (collect_submodules("uvicorn") + collect_submodules("webview") + collec
 datas = [("../../src/anidash/web", "anidash/web"), ("../../src/anidash/assets", "anidash/assets")]
 datas += collect_data_files("webview")  # includes webview/lib: the WebView2 interop DLLs
 binaries = []
-for pkg in ("pythonnet", "clr_loader"):  # winforms backend: Python.Runtime.dll + the .NET loader
+for pkg in ("pythonnet", "clr_loader", "libtorrent"):  # winforms backend (Python.Runtime.dll + .NET loader); libtorrent's .pyd
     d, b, h = collect_all(pkg)
     datas, binaries, hidden = datas + d, binaries + b, hidden + h
 

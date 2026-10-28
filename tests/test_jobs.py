@@ -1,11 +1,12 @@
 """Release matching, tracking mid-season, give-up clocks and replacements, with AniList, Nyaa
-and qBittorrent faked."""
+and the download engine faked."""
 import time
 from types import SimpleNamespace
 
 import pytest
 
-from anidash import db, jobs, nyaa, qbit, shows
+from anidash import db, jobs, nyaa, shows
+from anidash.engine import File, Torrent
 
 DAY = 86400
 MID = 4242
@@ -40,11 +41,9 @@ def fake_nyaa(monkeypatch):
 
 
 @pytest.fixture()
-def fake_qbit(monkeypatch):
-    added = []
-    monkeypatch.setattr(qbit, "add", lambda h, name, path, mid: added.append((h, name, path)))
+def fake_qbit(monkeypatch, fake_engine):
     monkeypatch.setattr(jobs, "_disk_ok", lambda size: True)
-    return added
+    return fake_engine.added
 
 
 def ep(n):
@@ -131,43 +130,29 @@ def test_sync_schedule_skips_watched_and_respects_backlog(home, monkeypatch):
     assert [states[n] for n in range(1, 9)] == ["skipped"] * 6 + ["scheduled"] * 2
 
 
-class FakeTorrent(SimpleNamespace):
-    pass
-
-
 def test_stalled_replacement_keeps_v1(show, monkeypatch, home):
     now = time.time()
     add_ep(5, now - DAY, state="done", infohash="b" * 40, old_hash="a" * 40, old_path=str(home / "Anime/x.mkv"),
            file_path=str(home / "Anime/x.mkv"), replacing=1, replace_started=now - 3600, version=2, downloaded_at=now - DAY)
-    client = SimpleNamespace(torrents_info=lambda category: [])
-    monkeypatch.setattr(qbit, "client", lambda: client)
-    monkeypatch.setattr(qbit, "remove", lambda h: None)
-    jobs.watch_downloads()
+    jobs.watch_downloads()  # the v2 is not in the engine
     r = ep(5)
     assert r["replacing"] == 0 and r["infohash"] == "a" * 40 and r["state"] == "done" and r["version"] == 1
     assert db.one("SELECT 1 FROM skipped WHERE infohash=?", "b" * 40)
 
 
-def test_watch_downloads_renames_and_syncs(show, monkeypatch, home):
+def test_watch_downloads_renames_and_syncs(show, monkeypatch, home, fake_engine):
     now = time.time()
     folder = home / "Anime" / "Test Show"
     folder.mkdir(parents=True)
     add_ep(5, now - DAY, state="downloading", infohash="c" * 40, queued_at=now - 600)
     src = "[SubsPlease] Tesuto Sho - 05 (1080p) [A].mkv"
     (folder / src).write_bytes(b"\0" * 1000)
-    renamed, removed, pushed = [], [], []
-
-    def rename(torrent_hash, old_path, new_path):
-        (folder / old_path).rename(folder / new_path)
-        renamed.append(new_path)
-    t = FakeTorrent(hash="C" * 40, progress=1.0, amount_left=0, save_path=str(folder), state="uploading")
-    client = SimpleNamespace(torrents_info=lambda category: [t], torrents_files=lambda torrent_hash: [SimpleNamespace(name=src, size=1000)],
-                             torrents_rename_file=rename)
-    monkeypatch.setattr(qbit, "client", lambda: client)
-    monkeypatch.setattr(qbit, "remove", lambda h: removed.append(h))
+    pushed = []
+    fake_engine.on_rename = lambda old, new: (folder / old).rename(folder / new)
+    fake_engine.items = [Torrent("c" * 40, src, "uploading", 1.0, str(folder), 0, files=[File(src, 1000)])]
     monkeypatch.setattr(jobs.anilist, "push_progress", lambda mid, n: pushed.append(n) or n)
     jobs.watch_downloads()
     r = ep(5)
     assert r["state"] == "done" and r["file_path"].endswith("Test Show - 05.mkv") and r["anilist_synced"] == 1
-    assert renamed == ["Test Show - 05.mkv"] and removed == ["C" * 40] and pushed == [5]
+    assert fake_engine.renamed == ["Test Show - 05.mkv"] and fake_engine.removed == ["c" * 40] and pushed == [5]
     assert r["delete_after"] - r["downloaded_at"] == pytest.approx(30 * DAY)
