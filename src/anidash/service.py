@@ -1,4 +1,5 @@
 """The background process: API server + scheduler in threads, tray icon on the main thread."""
+import contextlib
 import logging
 import logging.handlers
 import os
@@ -15,7 +16,7 @@ log = logging.getLogger("anidash")
 def setup_logging() -> None:
     for name in ("stdout", "stderr"):  # windowed PyInstaller builds have no console streams
         if getattr(sys, name) is None:
-            setattr(sys, name, open(os.devnull, "w"))
+            setattr(sys, name, open(os.devnull, "w"))  # noqa: SIM115  lives as long as the process
     paths.LOG_DIR.mkdir(parents=True, exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     fh = logging.handlers.RotatingFileHandler(paths.LOG_DIR / "anidash.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8")
@@ -96,10 +97,8 @@ def run(tray: bool = True, open_window: bool = False) -> int:
     ui._on_quit.append(exit_soon)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
+        with contextlib.suppress(ValueError, OSError):
             signal.signal(sig, shutdown)
-        except (ValueError, OSError):
-            pass
 
     if open_window or not db.setting("setup_done"):
         ui.open_window()

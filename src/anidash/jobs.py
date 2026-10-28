@@ -1,4 +1,5 @@
 """Scheduled jobs (Outline §5) and release matching (§6)."""
+import contextlib
 import functools
 import logging
 import shutil
@@ -243,10 +244,8 @@ def watch_downloads() -> None:
         folder = files.confine(Path(t.save_path))
         if r["replacing"]:
             if r["old_hash"]:
-                try:
+                with contextlib.suppress(Exception):
                     qbit.remove(r["old_hash"])
-                except Exception:
-                    pass
             if r["old_path"]:
                 files.trash(Path(r["old_path"]))
         if src_name != final_name:

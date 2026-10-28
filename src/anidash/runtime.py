@@ -10,7 +10,6 @@ import httpx
 
 from . import APP, __version__, paths
 
-
 _lock_fh = None
 
 
@@ -18,7 +17,7 @@ def acquire_lock() -> bool:
     """One instance per user. Held for the life of the process; the OS drops it if we crash."""
     global _lock_fh
     paths.RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-    fh = open(paths.RUNTIME_DIR / "instance.lock", "a+")
+    fh = open(paths.RUNTIME_DIR / "instance.lock", "a+")  # noqa: SIM115  held open as the lock
     try:
         if sys.platform == "win32":
             import msvcrt

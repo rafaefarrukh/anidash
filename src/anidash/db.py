@@ -6,7 +6,7 @@ import sqlite3
 import threading
 import time
 import tomllib
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from . import paths
 
@@ -120,10 +120,8 @@ def init() -> None:
             c.execute("ROLLBACK")
             raise
         log.info("database migrated to schema %d", i)
-    try:
+    with suppress(OSError):
         paths.DB_PATH.chmod(0o600)
-    except OSError:
-        pass
 
 
 def q(sql, *a):

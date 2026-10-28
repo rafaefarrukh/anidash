@@ -195,9 +195,10 @@
 <div style="padding:18px 24px;border-right:2px solid var(--color-divider);display:flex;flex-direction:column;gap:6px"><span style="font:700 15px var(--font-heading)">1 · AniList</span><span style="font-size:12px;font-weight:600;color:{{ su.al.color }}">{{ su.al.status }}</span></div>
 <div style="padding:18px 24px;display:flex;flex-direction:column;gap:12px;min-width:0">
 <div style="font-size:13px;line-height:1.5">anidash reads your Watching list and updates your progress when an episode downloads.</div>
-<sc-if value="{{ su.needCid }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;max-width:640px"><span>This build has no built-in AniList client. Create one: <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener" onClick="{{ su.openDev }}">anilist.co/settings/developer</a> → Create New Client → name <b>anidash</b>, redirect URL <b>https://anilist.co/api/v2/oauth/pin</b>. Paste its ID:</span>
+<sc-if value="{{ su.needCid }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;max-width:640px"><span>{{ su.cidIntro }} Create one: <a href="https://anilist.co/settings/developer" target="_blank" rel="noopener" onClick="{{ su.openDev }}">anilist.co/settings/developer</a> → Create New Client → name <b>anidash</b>, redirect URL <b>https://anilist.co/api/v2/oauth/pin</b>. Paste its ID:</span>
 <div style="display:flex;gap:8px"><input class="input" value="{{ su.cid }}" onChange="{{ su.setCid }}" placeholder="Client ID" style="width:160px"></input><button class="btn btn-secondary" onClick="{{ su.saveCid }}" style="white-space:nowrap;flex:none">Save ID</button></div></div></sc-if>
 <div style="display:flex;align-items:center;gap:12px"><button class="{{ su.alBtnClass }}" onClick="{{ reconnect }}" disabled="{{ su.alDisabled }}" style="white-space:nowrap;flex:none">{{ su.alBtn }}</button><span style="font-size:13px">{{ su.alText }}</span></div>
+<sc-if value="{{ su.canOwnCid }}" hint-placeholder-val="{{ false }}"><div><button class="btn btn-ghost" onClick="{{ su.toggleOwnCid }}" style="white-space:nowrap;flex:none;padding-left:0">{{ su.ownCidLabel }}</button></div></sc-if>
 </div>
 </div>
 <div style="display:grid;grid-template-columns:200px minmax(0,1fr);border-bottom:2px solid var(--color-divider)">
@@ -387,7 +388,7 @@ function demoData() {
 
 class Component extends DCLogic {
   state = { page: 'season', live: false, ready: false, ...seasonOf(new Date()), anime: [], season_list: [], seasonErr: '', seasonLoading: false, downloads: [], jobs: [], events: [], settings: {}, sDraft: {}, account: {},
-    health: {}, setup: null, qrep: null, ifaces: null, ifaceSel: '', manualQbit: false, setupBusy: false, qbMsg: '', cid: '', qbitPw: '',
+    health: {}, setup: null, qrep: null, ifaces: null, ifaceSel: '', manualQbit: false, ownCid: false, setupBusy: false, qbMsg: '', cid: '', qbitPw: '',
     selId: null, draft: null, removeMode: false, dialog: null, level: 'all', toast: '', qbit: '', probing: {}, now: Date.now() };
 
   componentDidMount() {
@@ -689,7 +690,9 @@ class Component extends DCLogic {
       al: { ...(alOk ? ok : todo), status: alOk ? '✓ Connected' : 'To do' },
       qb: { ...(qbOk ? ok : todo), status: qbOk ? '✓ Connected' : 'To do' },
       lib: { ...(su.library.writable ? ok : todo), status: su.library.writable ? '✓ Folder is writable' : 'Folder is not writable' },
-      needCid: !su.anilist.client_id, cid: S.cid, setCid: e => this.setState({ cid: e.target.value }), saveCid: () => this.saveCid(),
+      needCid: !su.anilist.client_id || S.ownCid, cid: S.cid,
+      cidIntro: su.anilist.client_id ? 'Optional: use your own AniList client instead of the built-in one.' : 'This build has no built-in AniList client.',
+      canOwnCid: !!su.anilist.client_id, ownCidLabel: S.ownCid ? 'Hide' : 'Use my own client', toggleOwnCid: () => this.setState(s => ({ ownCid: !s.ownCid })), setCid: e => this.setState({ cid: e.target.value }), saveCid: () => this.saveCid(),
       openDev: e => { e.preventDefault(); this.openExternal('https://anilist.co/settings/developer'); },
       alBtn: alOk ? 'Reconnect' : 'Connect AniList', alBtnClass: alOk ? 'btn btn-ghost' : 'btn btn-primary', alDisabled: !su.anilist.client_id,
       alText: alOk ? `Signed in as @${su.anilist.user}` : window.pywebview ? 'A sign-in window opens; approve anidash there.' : 'AniList opens in a new tab; approve, then paste the token.',

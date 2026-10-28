@@ -12,6 +12,12 @@ from . import APP
 log = logging.getLogger("anidash")
 IS_WIN = sys.platform == "win32"
 
+
+def _runtime_dir(data_dir: Path) -> Path:
+    # Windows' runtime dir is under %TEMP%, which Storage Sense empties while we run.
+    return data_dir / "run" if IS_WIN else Path(platformdirs.user_runtime_dir(APP, appauthor=False))
+
+
 _override = os.environ.get("ANIDASH_HOME")  # tests and portable installs: everything under one folder
 if _override:
     _root = Path(_override)
@@ -20,7 +26,7 @@ else:
     CONFIG_DIR = Path(platformdirs.user_config_dir(APP, appauthor=False))
     DATA_DIR = Path(platformdirs.user_data_dir(APP, appauthor=False))
     LOG_DIR = Path(platformdirs.user_log_dir(APP, appauthor=False))
-    RUNTIME_DIR = Path(platformdirs.user_runtime_dir(APP, appauthor=False))
+    RUNTIME_DIR = _runtime_dir(DATA_DIR)
 
 DB_PATH = DATA_DIR / "anidash.db"
 RUNTIME_FILE = RUNTIME_DIR / "runtime.json"   # port + per-start API token, mode 600

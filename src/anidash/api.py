@@ -9,7 +9,7 @@ import secrets
 import shutil
 import threading
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from pathlib import Path
 
@@ -18,7 +18,24 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import APP, __version__, anilist, autostart, db, files, jobs, nyaa, paths, player, qbit, qbit_setup, scheduler, shows, ui, vault
+from . import (
+    APP,
+    __version__,
+    anilist,
+    autostart,
+    db,
+    files,
+    jobs,
+    nyaa,
+    paths,
+    player,
+    qbit,
+    qbit_setup,
+    scheduler,
+    shows,
+    ui,
+    vault,
+)
 from .parser import parse
 
 log = logging.getLogger("anidash")
@@ -120,10 +137,8 @@ def anime_view(a, now) -> dict:
     ref = nxt["airs_at"] if nxt else (aired[-1]["airs_at"] if aired else None)
     torrents = {}
     if any(e["state"] in ("downloading", "queued") for e in eps):
-        try:
+        with suppress(Exception):
             torrents = {t.hash.lower(): t for t in qbit.client().torrents_info(category=qbit.CATEGORY)}
-        except Exception:
-            pass
     visible = []
     for e in eps:
         if e["state"] in ("deleted", "skipped") or not (e["airs_at"] and e["airs_at"] <= now or e["state"] != "scheduled"):

@@ -1,5 +1,6 @@
 """The dashboard window (pywebview: WebKitGTK or Qt on Linux, WebView2 on Windows).
 Runs as its own process; finds the service through runtime.json."""
+import contextlib
 import logging
 import threading
 import time
@@ -50,10 +51,8 @@ class Bridge:
                 except Exception:
                     token = None
             if token:
-                try:
+                with contextlib.suppress(Exception):
                     win.destroy()
-                except Exception:
-                    pass
                 exp = (frag.get("expires_in") or [None])[0]
                 return {"token": token, "expires_in": int(exp) if exp and exp.isdigit() else None}
         return {"error": "AniList window closed before login finished"}

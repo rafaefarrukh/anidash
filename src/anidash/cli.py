@@ -44,6 +44,9 @@ def main(argv=None) -> None:
         from . import autostart
         autostart.set_enabled(argv[1] == "on")
         print(f"autostart {'enabled' if autostart.is_enabled() else 'disabled'}")
+    elif cmd == "selftest":  # hidden: CI runs it on the frozen exe
+        from . import selftest
+        sys.exit(selftest.run(argv[1] if len(argv) > 1 else None))
     elif cmd == "install-systemd":
         from . import autostart
         unit = autostart.install_systemd()

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0rc1 — unreleased
+
+Release plumbing for the Windows app.
+
+- AniList login works out of the box with the built-in public client (ID 55203). Setup only asks for a client ID under *Use my own client*.
+- Windows: the runtime folder (lock + `runtime.json`) moved from `%TEMP%` to `%LOCALAPPDATA%\anidash\run`, so Storage Sense can't delete it while anidash runs.
+- Hidden `anidash selftest [out.json]` checks the window, tray, keyring and trash backends; CI and releases run it on the frozen exe. The PyInstaller spec now bundles pythonnet/clr_loader.
+- Releases: GitHub Release no longer waits on PyPI (opt-in via repo variable `PUBLISH_PYPI=true`), ships `SHA256SUMS.txt`, and marks `rc` tags as pre-releases.
+- Ruff config in `pyproject.toml` and a lint job in CI.
+
 ## 2.0.0 — unreleased
 
 v2 makes anidash installable by other people, on Linux and Windows.
