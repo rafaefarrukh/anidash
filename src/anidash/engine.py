@@ -1,4 +1,6 @@
 """The download engine: the built-in libtorrent session (default) or the user's qBittorrent.
+Interface: add, torrents, files, rename_file, stop, remove, finalize (data on disk, files released, torrent
+gone), interfaces, bind_interface, health, close.
 jobs.py and api.py only talk to `get()`. Torrents never seed: jobs removes them once the file is in place."""
 import contextlib
 import logging
@@ -76,6 +78,10 @@ class QbitEngine:
     def remove(self, hashes) -> None:
         from . import qbit
         qbit.remove(_hashes(hashes))
+
+    def finalize(self, infohash: str) -> bool:
+        self.remove(infohash)  # qBittorrent writes before it reports a piece done
+        return True
 
     def interfaces(self) -> dict:
         from . import qbit
@@ -160,6 +166,7 @@ class LibtorrentEngine:
         self._stop = threading.Event()
         self._pending_saves = 0
         self._last_save = time.monotonic()
+        self._waits: dict[tuple[str, str], threading.Event] = {}  # (kind, hash) -> set by the alert loop
         # bound to a VPN: start paused on loopback, so nothing leaves before the interface is checked
         self.session = lt.session(self._settings("127.0.0.1" if self.interface else None))
         if self.interface:
@@ -251,8 +258,26 @@ class LibtorrentEngine:
             self._save(a.handle)
         elif isinstance(a, lt.metadata_received_alert):
             self._save(a.handle)
+        elif isinstance(a, lt.cache_flushed_alert):
+            self._signal("flushed", str(a.handle.info_hashes().v1))
+        elif isinstance(a, lt.torrent_removed_alert):
+            self._signal("removed", str(a.info_hashes.v1))
         elif isinstance(a, (lt.torrent_error_alert, lt.file_error_alert, lt.file_rename_failed_alert)):
             log.warning("libtorrent: %s", a.message())
+
+    def _signal(self, kind: str, h: str) -> None:
+        ev = self._waits.get((kind, h))
+        if ev:
+            ev.set()
+
+    def _wait_for(self, kind: str, h: str, start, timeout: float) -> bool:
+        ev = self._waits.setdefault((kind, h), threading.Event())
+        ev.clear()
+        try:
+            start()
+            return ev.wait(timeout)
+        finally:
+            self._waits.pop((kind, h), None)
 
     # -- engine interface
     def _handle(self, infohash: str):
@@ -309,6 +334,21 @@ class LibtorrentEngine:
             if h:
                 self.session.remove_torrent(h)  # files stay; jobs trashes them itself when needed
             self._resume_file(ih).unlink(missing_ok=True)
+
+    def finalize(self, infohash: str, timeout: float = 15) -> bool:
+        """Hand a finished torrent's file over: libtorrent can report every piece verified while some are
+        still in its write buffer, so flush them (which also closes the file handles), then remove the torrent.
+        False if the flush isn't confirmed in time; the torrent stays (paused) and jobs tries again later."""
+        ih = infohash.lower()
+        h = self._handle(ih)
+        if h is None:
+            return True
+        if not self._wait_for("flushed", ih, h.flush_cache, timeout):
+            log.warning("libtorrent did not confirm writing %s yet", ih)
+            return False
+        self._wait_for("removed", ih, lambda: self.session.remove_torrent(h), 5)
+        self._resume_file(ih).unlink(missing_ok=True)
+        return True
 
     def interfaces(self) -> dict:
         return {"current": self.interface, "list": list_interfaces(), "bypass_local_auth": False,

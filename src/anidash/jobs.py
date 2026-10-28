@@ -339,8 +339,9 @@ def watch_downloads() -> None:
             continue
         src = files.confine(Path(t.save_path) / fl[0].name)
         final = files.show_dir(r["display_title"]) / files.episode_name(r["display_title"], n, r["total_episodes"], src.suffix)
-        try:  # don't seed: drop the torrent first (its files stay), then move the file into the library
-            eng.remove(t.hash)
+        try:  # don't seed: the engine writes out and lets go of the file, drops the torrent; then the move
+            if not eng.finalize(t.hash):
+                continue  # still writing: next tick (the torrent stays stopped)
         except Exception as e:
             log.warning("could not remove finished torrent %s: %s", t.hash, e)
         if r["replacing"]:
@@ -349,12 +350,16 @@ def watch_downloads() -> None:
                     eng.remove(r["old_hash"])
             if r["old_path"]:
                 file_op("trash", r["old_path"], mid=mid, n=n)
+        for _ in range(40):  # an engine may still be writing it out: don't move a short file
+            if src.exists() and src.stat().st_size >= fl[0].size:
+                break
+            time.sleep(0.25)
         # the engine may hold the file for a moment after removal; queued (not failed) if it stays in use
         file_op("move", src, final, mid, n, attempts=8)
         if src.parent.parent.name == files.INCOMING:
             with contextlib.suppress(OSError):  # the staging folder is empty now (rmdir refuses otherwise)
                 src.parent.rmdir()
-        size = final.stat().st_size if final.exists() else fl[0].size
+        size = fl[0].size
         ret = float(db.setting("retention_days"))
         db.x("""UPDATE episode SET state='done', file_path=?, size_bytes=?, downloaded_at=?, delete_after=?, replacing=0,
                 old_hash=NULL, old_path=NULL, replace_started=NULL WHERE anilist_id=? AND number=?""", str(final), size, now, now + ret * DAY, mid, n)
