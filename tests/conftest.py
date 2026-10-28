@@ -21,6 +21,7 @@ def home(tmp_path, monkeypatch):
     db.close()
     db.init()
     lib = tmp_path / "Anime"
+    lib.mkdir()  # the app creates it in jobs.check_library once it knows the volume is right
     db.set_settings({"library_path": str(lib)})
     yield tmp_path
     db.close()
@@ -53,6 +54,10 @@ class FakeEngine:
 
     def remove(self, hashes):
         self.removed.extend([hashes] if isinstance(hashes, str) else hashes)
+
+    def finalize(self, infohash):
+        self.remove(infohash)
+        return True
 
     def interfaces(self):
         return {"current": "", "list": [{"name": "wg0 (10.2.0.2)", "value": "wg0"}], "bypass_local_auth": False}

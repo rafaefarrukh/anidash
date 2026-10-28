@@ -60,3 +60,10 @@ def test_engine_migration_keeps_qbittorrent_for_finished_setups(home):
     _at_schema_1(setup_done=False)
     assert db.setting("engine") == "builtin"  # new users get the built-in engine
     assert db.one("PRAGMA user_version")[0] == len(db.MIGRATIONS)
+
+
+def test_pending_op_table(home):
+    _at_schema_1(setup_done=False)  # runs migrations 2 and 3 again from schema 1
+    cols = {r["name"] for r in db.q("PRAGMA table_info(pending_op)")}
+    assert {"kind", "src", "dst", "anilist_id", "number", "created", "tries", "last_error"} <= cols
+    assert db.setting("managed_trash_days") == 14

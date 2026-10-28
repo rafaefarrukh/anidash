@@ -4,7 +4,6 @@ configure(port, token) must be called before the app starts serving."""
 import hmac
 import json
 import logging
-import os
 import secrets
 import shutil
 import threading
@@ -34,6 +33,7 @@ from . import (
     qbit_setup,
     scheduler,
     shows,
+    storage,
     ui,
     vault,
 )
@@ -102,7 +102,8 @@ def current_season(now: datetime | None = None) -> tuple[str, int]:
 def health():
     return {"app": APP, "version": __version__, "setup_done": bool(db.setting("setup_done")),
             "v1_conflict": STATE["v1_conflict"], "paused": scheduler.paused.is_set(),
-            "no_webview": STATE["no_webview"] and not db.setting("webview_notice_dismissed")}
+            "no_webview": STATE["no_webview"] and not db.setting("webview_notice_dismissed"),
+            "library_problem": jobs.LIBRARY["problem"]}
 
 
 @app.post("/api/ui/show")
@@ -263,7 +264,8 @@ def remove(mid: int, body: Removal):
     folder = files.show_dir(a["display_title"])
     if folder != files.library_root():
         try:
-            files.trash(folder)
+            if folder.exists():
+                jobs.file_op("trash", folder, mid=mid)  # waits if a player has an episode open
         except OSError as e:
             db.event("warn", f"Could not move {folder} to the Trash: {e}", mid)
     db.x("DELETE FROM anime WHERE anilist_id=?", mid)
@@ -333,11 +335,12 @@ def downloads():
     labels = {r["infohash"]: f"{r['title_en'] or r['title_romaji']} – {r['number']:02d} · {r['chosen_group']}"
               for r in db.q("""SELECT e.infohash, e.number, e.chosen_group, a.title_en, a.title_romaji FROM episode e
                                JOIN anime a USING(anilist_id) WHERE e.infohash IS NOT NULL AND (e.state IN ('queued','downloading') OR e.replacing=1)""")}
+    out = [{"name": Path(o["src"]).name, "progress": 1.0, "speed": "waiting: file in use", "eta": "—"}
+           for o in db.q("SELECT src FROM pending_op ORDER BY id")]
     try:
         ts = engine.get().torrents()
     except Exception:
-        return []
-    out = []
+        return out
     for t in ts:
         if t.progress >= 1:
             continue
@@ -379,9 +382,9 @@ def _bool(v) -> bool:
 
 
 EDITABLE = {"library_path": str, "retention_days": int, "fallback_hours": int, "poll_minutes": int, "give_up_days": int,
-            "backlog": _bool, "engine": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "vlc_path": str, "vlc_args": str,
+            "backlog": _bool, "engine": str, "managed_trash_days": int, "library_ack": str, "nyaa_base": str, "qbit_url": str, "qbit_username": str, "vlc_path": str, "vlc_args": str,
             "anilist_client_id": str}
-RANGES = {"retention_days": (1, 365), "fallback_hours": (0, 168), "poll_minutes": (5, 720), "give_up_days": (1, 60)}
+RANGES = {"managed_trash_days": (0, 365), "retention_days": (1, 365), "fallback_hours": (0, 168), "poll_minutes": (5, 720), "give_up_days": (1, 60)}
 
 
 @app.get("/api/settings")
@@ -416,11 +419,17 @@ def patch_settings(body: dict):
         raise HTTPException(422, "AniList client ID is a number")
     if "library_path" in clean:
         p = Path(clean["library_path"]).expanduser()
+        info = storage.classify(p)
+        if info["kind"] == "cloud" and clean.get("library_ack", db.setting("library_ack")) != str(p):
+            raise HTTPException(422, f"Library folder is synced by {info['cloud_provider'] or 'a cloud client'}: every episode "
+                                     "would be uploaded. Tick “I understand” to use it anyway.")
         try:
             p.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             raise HTTPException(422, f"Library folder: {e}")
         clean["library_path"] = str(p)
+        clean["library_fp"] = storage.fingerprint(storage.classify(p))  # "the same place" from now on
+        jobs.LIBRARY.update(problem=None, cleaned=False)
     db.set_settings(clean)
     if "poll_minutes" in clean:
         scheduler.set_poll_minutes(clean["poll_minutes"])
@@ -463,12 +472,21 @@ def test_qbit(body: QbitLogin):
     return {"version": v}
 
 
+@app.get("/api/storage")
+def storage_info(path: str | None = None):
+    """Classification of a library folder (the saved one by default), for the folder picker."""
+    p = Path(path or db.setting("library_path")).expanduser()
+    info = storage.classify(p)
+    return {"path": str(p), **info, "warnings": storage.warnings(info),
+            "needs_ack": info["kind"] == "cloud" and db.setting("library_ack") != str(p)}
+
+
 @app.get("/api/account")
 def account():
     root = files.library_root()
     used = db.one("SELECT COALESCE(SUM(size_bytes),0) n FROM episode WHERE state='done'")["n"]
     out = {"client_id": anilist.client_id(), "public_client": bool(anilist.PUBLIC_CLIENT_ID), "disk_used": used,
-           "disk_free": shutil.disk_usage(root).free, "user": None, "score_format": "POINT_100",
+           "disk_free": shutil.disk_usage(storage.existing(root)).free, "user": None, "score_format": "POINT_100",
            "token_expires": None, "secrets": vault.backend_name(), "secrets_in_file": vault.using_file(),
            "version": __version__, "data_dir": str(paths.DATA_DIR), "log_dir": str(paths.LOG_DIR)}
     exp = float(db.setting("token_expires") or 0) or (float(db.setting("token_issued") or 0) + 365 * 86400)
@@ -515,9 +533,11 @@ def setup_status():
         dl = {"ok": False, "version": None, "error": f"{type(e).__name__}: {e}"}
     qb = dl if eng == "qbittorrent" else {"ok": False, "error": None, "version": None}
     lib = Path(db.setting("library_path"))
+    info = storage.classify(lib)
     return {"done": bool(db.setting("setup_done")), "anilist": {"ok": bool(a["user"]), "user": a["user"],
             "client_id": a["client_id"], "authorize_url": anilist.authorize_url()},
-            "downloads": {"engine": eng, **dl}, "qbit": qb, "library": {"path": str(lib), "writable": os.access(lib if lib.exists() else lib.parent, os.W_OK)},
+            "downloads": {"engine": eng, **dl}, "qbit": qb, "library": {"path": str(lib), "writable": info["writable"], **info, "warnings": storage.warnings(info),
+                        "needs_ack": info["kind"] == "cloud" and db.setting("library_ack") != str(lib)},
             "autostart": autostart.is_enabled(), "backlog": bool(db.setting("backlog"))}
 
 

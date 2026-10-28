@@ -1,6 +1,6 @@
 """Offline, two real libtorrent sessions on 127.0.0.1: one seeds a generated .mkv, LibtorrentEngine downloads
-it from a magnet (no DHT, trackers or LSD; the peer is connected directly). Then watch_downloads renames it
-into the library and removes the torrent (no seeding), and resume data survives an engine restart."""
+it from a magnet (no DHT, trackers or LSD; the peer is connected directly). Then watch_downloads moves it
+from .anidash-incoming into the library and removes the torrent (no seeding), and resume data survives an engine restart."""
 import socket
 import time
 
@@ -61,7 +61,8 @@ def test_download_rename_and_remove(home, tmp_path, monkeypatch, seeder):
     shows.upsert_media({"id": mid, "title": {"english": "Real Show: Part 2", "romaji": "Riaru"}, "episodes": 12})
     folder = jobs.files.show_dir("Real Show - Part 2")
     try:
-        eng.add(seeder["hash"], seeder["name"], str(folder), mid)
+        staging = jobs.files.incoming(seeder["hash"])
+        eng.add(seeder["hash"], seeder["name"], str(staging), mid)
         eng._handle(seeder["hash"]).connect_peer(("127.0.0.1", seeder["port"]))
         db.x("INSERT INTO episode(anilist_id, number, airs_at, state, infohash, queued_at) VALUES(?,?,?,?,?,?)",
              mid, 5, time.time() - 3600, "queued", seeder["hash"], time.time())
@@ -81,7 +82,7 @@ def test_download_rename_and_remove(home, tmp_path, monkeypatch, seeder):
         assert r["state"] == "done", dict(r)
         final = folder / "Real Show - Part 2 - 05.mkv"
         assert r["file_path"] == str(final.resolve()) and final.stat().st_size == seeder["size"]
-        assert not (folder / seeder["name"]).exists()
+        assert not staging.exists()  # moved out of .anidash-incoming, folder removed
         assert eng.torrents() == []  # no seeding: removed, file kept
         assert not list((tmp_path / "resume").glob("*.fastresume"))
     finally:

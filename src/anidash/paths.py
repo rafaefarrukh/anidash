@@ -45,10 +45,14 @@ ASSETS_DIR = _bundle_dir() / "assets"
 
 
 def default_library() -> Path:
+    """Videos/Anime, unless Videos is synced by OneDrive & co. (every episode would be uploaded): ~/Anime."""
+    from . import storage
     try:
         videos = Path(platformdirs.user_videos_dir())
     except Exception:
         videos = Path.home() / "Videos"
+    if storage.cloud_provider(videos / "Anime"):
+        return Path.home() / "Anime"
     return videos / "Anime"
 
 

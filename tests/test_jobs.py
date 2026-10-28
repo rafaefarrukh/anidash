@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from anidash import db, jobs, nyaa, shows
+from anidash import db, files, jobs, nyaa, shows
 from anidash.engine import File, Torrent
 
 DAY = 86400
@@ -140,19 +140,20 @@ def test_stalled_replacement_keeps_v1(show, monkeypatch, home):
     assert db.one("SELECT 1 FROM skipped WHERE infohash=?", "b" * 40)
 
 
-def test_watch_downloads_renames_and_syncs(show, monkeypatch, home, fake_engine):
+def test_watch_downloads_moves_from_staging_and_syncs(show, monkeypatch, home, fake_engine):
     now = time.time()
-    folder = home / "Anime" / "Test Show"
-    folder.mkdir(parents=True)
     add_ep(5, now - DAY, state="downloading", infohash="c" * 40, queued_at=now - 600)
     src = "[SubsPlease] Tesuto Sho - 05 (1080p) [A].mkv"
-    (folder / src).write_bytes(b"\0" * 1000)
+    staging = files.incoming("c" * 40)
+    staging.mkdir(parents=True)
+    (staging / src).write_bytes(b"\0" * 1000)
     pushed = []
-    fake_engine.on_rename = lambda old, new: (folder / old).rename(folder / new)
-    fake_engine.items = [Torrent("c" * 40, src, "uploading", 1.0, str(folder), 0, files=[File(src, 1000)])]
+    fake_engine.items = [Torrent("c" * 40, src, "uploading", 1.0, str(staging), 0, files=[File(src, 1000)])]
     monkeypatch.setattr(jobs.anilist, "push_progress", lambda mid, n: pushed.append(n) or n)
     jobs.watch_downloads()
     r = ep(5)
-    assert r["state"] == "done" and r["file_path"].endswith("Test Show - 05.mkv") and r["anilist_synced"] == 1
-    assert fake_engine.renamed == ["Test Show - 05.mkv"] and fake_engine.removed == ["c" * 40] and pushed == [5]
+    final = home / "Anime" / "Test Show" / "Test Show - 05.mkv"
+    assert r["state"] == "done" and r["file_path"] == str(final.resolve()) and r["anilist_synced"] == 1
+    assert final.read_bytes() == b"\0" * 1000 and not staging.exists()  # moved, staging folder gone
+    assert fake_engine.removed == ["c" * 40] and fake_engine.renamed == [] and pushed == [5]
     assert r["delete_after"] - r["downloaded_at"] == pytest.approx(30 * DAY)

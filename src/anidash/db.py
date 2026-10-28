@@ -67,10 +67,21 @@ def _m2(c: sqlite3.Connection) -> None:
         c.execute("INSERT OR IGNORE INTO settings VALUES('engine', '\"qbittorrent\"')")
 
 
-MIGRATIONS = [_m1, _m2]
+def _m3(c: sqlite3.Connection) -> None:
+    """File moves and trashing that hit a file in use (a player has it open) wait here and are retried
+    on every poll, in order, instead of failing the episode."""
+    c.execute("""CREATE TABLE IF NOT EXISTS pending_op(
+      id INTEGER PRIMARY KEY, kind TEXT NOT NULL, src TEXT NOT NULL, dst TEXT, anilist_id INTEGER, number INTEGER,
+      created REAL NOT NULL, tries INTEGER NOT NULL DEFAULT 0, last_error TEXT)""")
+
+
+MIGRATIONS = [_m1, _m2, _m3]
 
 SETTING_DEFAULTS = {
     "library_path": "",              # filled with paths.default_library() on first read
+    "library_fp": None,              # {kind, fs_type} of the library's volume when it was chosen (jobs.check_library)
+    "library_ack": "",               # the cloud-synced library path the user agreed to upload from
+    "managed_trash_days": 14,        # .anidash-trash/<date>/ older than this is emptied; 0 = never
     "retention_days": 30,
     "fallback_hours": 24,
     "poll_minutes": 20,
