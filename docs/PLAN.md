@@ -18,10 +18,10 @@ Goal: anyone on Windows 10/11 installs one `setup.exe`, connects AniList, picks 
 - Parallel: Phase 5 (player) touches no files Phase 3/4 need beyond `api.py`/dashboard settings; it can run alongside Phase 3 if you accept a small merge.
 
 ## Manual tasks (Rafae)
-- [ ] **M0** Make sure GitHub Actions is enabled (repo → Settings → Actions → General → *Allow all actions*). Every phase relies on the Windows CI jobs; when Phase 0 was pushed, GitHub showed no workflows or runs for the repo.
+- [x] **M0** Make sure GitHub Actions is enabled (repo → Settings → Actions → General → *Allow all actions*). Every phase relies on the Windows CI jobs; when Phase 0 was pushed, GitHub showed no workflows or runs for the repo.
 - [ ] **M1** Merge the Phase 0 PR (v2 import + this plan + env hook) into `main`.
-- [ ] **M2** Register the AniList client: anilist.co → Settings → Developer → *Create New Client*. Name `anidash`, Redirect URL `https://anilist.co/api/v2/oauth/pin`. Copy the numeric **Client ID** into the Phase 1 prompt.
-- [ ] **M3** Decide PyPI: either set up a trusted publisher on pypi.org for `rafaefarrukh/anidash` (workflow `release.yml`) and add repo variable `PUBLISH_PYPI=true`, or skip PyPI for now (Phase 1 makes it optional).
+- [x] **M2** AniList client registered: name `AniDash`, **client ID `55203`**, redirect `https://anilist.co/api/v2/oauth/pin`. anidash uses the implicit grant, so the client secret is never needed and must never be committed.
+- [x] **M3** PyPI: skipped for now. Phase 1 makes the PyPI job opt-in (repo variable `PUBLISH_PYPI=true`).
 - [ ] **M4** Cloud environment network access must allow PyPI and GitHub (the default *Trusted* policy does). Nothing else is needed: tests don't hit AniList/Nyaa.
 - [ ] **M5** Before each release: run the phase's manual Windows checks on real Windows 11 (and Windows 10 if you can borrow one).
 - [ ] **M6** After v2.0.0 is out: apply to SignPath Foundation (signpath.org/apply). Phase 6 prepares the code signing policy page they require.
@@ -120,7 +120,7 @@ Rules:
 ### Phase 1
 ```
 Read CLAUDE.md and docs/PLAN.md, and follow the "Session rules" in docs/PLAN.md.
-Implement Phase 1 (release plumbing) of docs/PLAN.md. The AniList client ID to ship is <CLIENT_ID>. PyPI publishing: <"set up — use PUBLISH_PYPI" | "skip for now">.
+Implement Phase 1 (release plumbing) of docs/PLAN.md. The AniList client ID to ship is 55203. PyPI publishing: skip for now.
 ```
 
 ### Phase 2
