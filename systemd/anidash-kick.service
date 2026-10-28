@@ -1,9 +1,0 @@
-[Unit]
-Description=anidash catch-up kick (runs overdue jobs after sleep)
-After=anidash.service
-Requisite=anidash.service
-
-[Service]
-Type=oneshot
-Environment=PYTHONPATH=%h/.local/share/anime-dl/app
-ExecStart=%h/.local/share/anime-dl/venv/bin/python -m anidash kick catchup

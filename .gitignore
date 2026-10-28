@@ -1,5 +1,10 @@
 __pycache__/
 *.pyc
+.venv/
+/build/
+/dist/
+*.egg-info/
+.pytest_cache/
 .thumbnail
 uploads/
-.venv/
+packaging/windows/version_info.txt
